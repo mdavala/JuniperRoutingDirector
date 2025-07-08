@@ -1,0 +1,116 @@
+{
+  "customer_id": "{{CUSTOMER_ID}}",
+  "design_id": "{{DESIGN_ID}}",
+  "design_version": "{{DESIGN_VERSION}}",
+  "instance_id": "{{SERVICE_NAME}}",
+  "instance_uuid": "{{INSTANCE_UUID}}",
+  "l2vpn_ntw": {
+    "vpn_services": {
+      "vpn_service": [
+        {
+          "customer_name": "{{CUSTOMER_NAME}}",
+          "vpn_id": "{{SERVICE_NAME}}",
+          "vpn_name": "{{SERVICE_NAME}}",
+          "vpn_nodes": {
+            "vpn_node": [
+              {
+                "description": "{{SOURCE_DESCRIPTION}}",
+                "ne_id": "{{SOURCE_NE_ID}}",
+                "signaling_options": [
+                  {
+                    "ac_pw_list": [
+                      {
+                        "peer_addr": "{{SOURCE_PEER_ADDR}}",
+                        "vc_id": 0
+                      }
+                    ],
+                    "type": "ldp-signaling"
+                  }
+                ],
+                "underlay_transport": {
+                  "instance_type": "lsp",
+                  "transport_instance_id": "{{SOURCE_TRANSPORT_INSTANCE}}"
+                },
+                "vpn_network_accesses": {
+                  "vpn_network_access": [
+                    {
+                      "connection": {
+                        "encapsulation": {
+                          "dot1q": {
+                            "c_vlan_id": "{{VLAN_ID}}"
+                          },
+                          "l2_access_type": "dot1q"
+                        }
+                      },
+                      "description": "{{SOURCE_ACCESS_DESCRIPTION}}",
+                      "id": "{{SOURCE_PORT_ID}}",
+                      "port_id": "{{SOURCE_PORT}}",
+                      "service": {
+                        "svc_input_bandwidth": {
+                          "input_bandwidth": []
+                        },
+                        "svc_output_bandwidth": {
+                          "output_bandwidth": []
+                        }
+                      }
+                    }
+                  ]
+                },
+                "vpn_node_id": "{{SOURCE_NODE}}"
+              },
+              {
+                "description": "{{DEST_DESCRIPTION}}",
+                "ne_id": "{{DEST_NE_ID}}",
+                "signaling_options": [
+                  {
+                    "ac_pw_list": [
+                      {
+                        "peer_addr": "{{DEST_PEER_ADDR}}",
+                        "vc_id": 0
+                      }
+                    ],
+                    "type": "ldp-signaling"
+                  }
+                ],
+                "underlay_transport": {
+                  "instance_type": "lsp",
+                  "transport_instance_id": "{{DEST_TRANSPORT_INSTANCE}}"
+                },
+                "vpn_network_accesses": {
+                  "vpn_network_access": [
+                    {
+                      "connection": {
+                        "encapsulation": {
+                          "dot1q": {
+                            "c_vlan_id": "{{VLAN_ID}}"
+                          },
+                          "l2_access_type": "dot1q"
+                        }
+                      },
+                      "description": "{{DEST_ACCESS_DESCRIPTION}}",
+                      "id": "{{DEST_PORT_ID}}",
+                      "port_id": "{{DEST_PORT}}",
+                      "service": {
+                        "svc_input_bandwidth": {
+                          "input_bandwidth": []
+                        },
+                        "svc_output_bandwidth": {
+                          "output_bandwidth": []
+                        }
+                      }
+                    }
+                  ]
+                },
+                "vpn_node_id": "{{DEST_NODE}}"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "operation": "create",
+  "org_id": "{{ORG_ID}}",
+  "version": "1.0.0",
+  "workflow_id": "{{WORKFLOW_ID}}"
+}

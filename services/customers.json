@@ -1,0 +1,34 @@
+[
+    {
+        "customer_id": "7cc7c276-1f9b-11f0-905a-1a572f239e3c",
+        "name": "Infrastructure",
+        "status": "active",
+        "upload_time": "2025-04-22T17:01:52Z"
+    },
+    {
+        "customer_id": "5d7b18f0-202a-11f0-905a-1a572f239e3c",
+        "name": "network-operator",
+        "status": "active",
+        "upload_time": "2025-04-23T10:04:37Z"
+    },
+    {
+        "customer_id": "350ed1f4-277c-11f0-b231-3665c4645853",
+        "description": "",
+        "name": "SINET",
+        "reference_number": "",
+        "status": "active",
+        "upload_time": "2025-05-02T17:38:06Z"
+    },
+    {
+        "customer_id": "eb87b795-56a5-11f0-b86f-3e419dccaacb",
+        "name": "eacf2208-2ca3-11f0-88d4-1212bc3bfe8e",
+        "status": "active",
+        "upload_time": "2025-07-01T18:05:06Z"
+    },
+    {
+        "customer_id": "107a97d7-5770-11f0-b86f-3e419dccaacb",
+        "name": "corp-a",
+        "status": "active",
+        "upload_time": "2025-07-02T18:12:07Z"
+    }
+]

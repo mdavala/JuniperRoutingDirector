@@ -1,0 +1,116 @@
+{
+  "customer_id": "350ed1f4-277c-11f0-b231-3665c4645853",
+  "design_id": "eline-l2circuit-nsm",
+  "design_version": "0.5.11",
+  "instance_id": "l2ckt1",
+  "instance_uuid": "dfb43d02-37aa-11f0-b86f-3e419dccaacb",
+  "l2vpn_ntw": {
+    "vpn_services": {
+      "vpn_service": [
+        {
+          "customer_name": "SINET",
+          "vpn_id": "l2ckt1",
+          "vpn_name": "l2ckt1",
+          "vpn_nodes": {
+            "vpn_node": [
+              {
+                "description": "l2ckt1-acx1",
+                "ne_id": "00000000-0000-0000-1000-3c08cd823100",
+                "signaling_options": [
+                  {
+                    "ac_pw_list": [
+                      {
+                        "peer_addr": "10.40.40.6",
+                        "vc_id": 0
+                      }
+                    ],
+                    "type": "ldp-signaling"
+                  }
+                ],
+                "underlay_transport": {
+                  "instance_type": "lsp",
+                  "transport_instance_id": "DELAY-to-TH-ACX7100-A6"
+                },
+                "vpn_network_accesses": {
+                  "vpn_network_access": [
+                    {
+                      "connection": {
+                        "encapsulation": {
+                          "dot1q": {
+                            "c_vlan_id": 1000
+                          },
+                          "l2_access_type": "dot1q"
+                        }
+                      },
+                      "description": "to-l2ckt1-ce1",
+                      "id": "111",
+                      "port_id": "et-0/0/6",
+                      "service": {
+                        "svc_input_bandwidth": {
+                          "input_bandwidth": []
+                        },
+                        "svc_output_bandwidth": {
+                          "output_bandwidth": []
+                        }
+                      }
+                    }
+                  ]
+                },
+                "vpn_node_id": "PNH-ACX7024-A1"
+              },
+              {
+                "description": "l2ckt1-acx6",
+                "ne_id": "00000000-0000-0000-1000-20ed4753e018",
+                "signaling_options": [
+                  {
+                    "ac_pw_list": [
+                      {
+                        "peer_addr": "10.40.40.1",
+                        "vc_id": 0
+                      }
+                    ],
+                    "type": "ldp-signaling"
+                  }
+                ],
+                "underlay_transport": {
+                  "instance_type": "lsp",
+                  "transport_instance_id": "DELAY-to-PNH-ACX7024-A1"
+                },
+                "vpn_network_accesses": {
+                  "vpn_network_access": [
+                    {
+                      "connection": {
+                        "encapsulation": {
+                          "dot1q": {
+                            "c_vlan_id": 1000
+                          },
+                          "l2_access_type": "dot1q"
+                        }
+                      },
+                      "description": "to l2ckt1 ce1",
+                      "id": "111",
+                      "port_id": "et-0/0/8",
+                      "service": {
+                        "svc_input_bandwidth": {
+                          "input_bandwidth": []
+                        },
+                        "svc_output_bandwidth": {
+                          "output_bandwidth": []
+                        }
+                      }
+                    }
+                  ]
+                },
+                "vpn_node_id": "TH-ACX7100-A6"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "operation": "create",
+  "org_id": "0eaf8613-632d-41d2-8de4-c2d242325d7e",
+  "version": "1.0.0",
+  "workflow_id": "create-eline-l2circuit-nsm-0_5_11"
+}

@@ -2510,7 +2510,7 @@ def main():
     initialize_session_state()
     
     # Header
-    st.title("🤖 Routing Director MCP - Intelligent Service Creation")
+    st.title("🤖 Routing Director MCP")
     
     # Server selection
     col1, col2 = st.columns([3, 1])
@@ -2572,7 +2572,7 @@ def main():
     
     # GPT-4 AI Hint Box
     if st.session_state.connection_status and st.session_state.mcp_client.gpt4_enabled:
-        with st.expander("💡 Intelligent Natural Language Service Creation & Deletion", expanded=False):
+        with st.expander("💡 Natural Language Service Creation & Deletion", expanded=False):
             st.markdown("""
                 <div class="ai-hint">
                 🤖 <strong>GPT-4 Powered Natural Language Service Management</strong><br>

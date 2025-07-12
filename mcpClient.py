@@ -11,7 +11,7 @@ import io
 
 # Configure Streamlit page
 st.set_page_config(
-    page_title="Routing Director MCP - Intelligent Service Creation",
+    page_title="Routing Director MCP",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -59,6 +59,16 @@ st.markdown("""
         border-left: 4px solid #28a745;
     }
     
+    .form-message {
+        background-color: #fff3cd;
+        color: #856404;
+        padding: 10px 15px;
+        border-radius: 18px 18px 18px 5px;
+        margin: 10px 0;
+        margin-right: 20%;
+        border-left: 4px solid #ffc107;
+    }
+    
     .create-message {
         background-color: #fff3cd;
         color: #856404;
@@ -67,6 +77,16 @@ st.markdown("""
         margin: 10px 0;
         margin-right: 20%;
         border-left: 4px solid #ffc107;
+    }
+    
+    .delete-message {
+        background-color: #f8d7da;
+        color: #721c24;
+        padding: 10px 15px;
+        border-radius: 18px 18px 18px 5px;
+        margin: 10px 0;
+        margin-right: 20%;
+        border-left: 4px solid #dc3545;
     }
     
     .confirmation-message {
@@ -132,6 +152,81 @@ st.markdown("""
         border-radius: 4px;
         margin-bottom: 1rem;
         font-size: 0.9rem;
+    }
+    
+    .form-container {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 15px 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .form-header {
+        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        font-weight: bold;
+        text-align: center;
+    }
+    
+    .form-field {
+        margin-bottom: 15px;
+        padding: 10px;
+        background-color: white;
+        border-radius: 6px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .form-field-label {
+        font-weight: bold;
+        color: #495057;
+        margin-bottom: 5px;
+        display: block;
+    }
+    
+    .form-field-description {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-top: 3px;
+    }
+    
+    .form-actions {
+        text-align: center;
+        margin-top: 20px;
+        padding-top: 15px;
+        border-top: 1px solid #dee2e6;
+    }
+    
+    .delete-confirmation-panel {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin: 15px 0;
+        text-align: center;
+        border-left: 4px solid #721c24;
+    }
+    
+    .delete-service-details {
+        background-color: #f8d7da;
+        color: #721c24;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+        border-left: 4px solid #dc3545;
+    }
+    
+    .delete-warning {
+        background-color: #fff3cd;
+        color: #856404;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+        border-left: 4px solid #ffc107;
     }
     
     .dataframe-container {
@@ -388,6 +483,53 @@ st.markdown("""
     .junos-value {
         color: #ffa726;
     }
+    
+    .collapsible-section {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        margin: 10px 0;
+        background-color: white;
+    }
+    
+    .collapsible-header {
+        background-color: #f8f9fa;
+        padding: 12px 15px;
+        border-bottom: 1px solid #dee2e6;
+        cursor: pointer;
+        font-weight: bold;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .collapsible-header:hover {
+        background-color: #e9ecef;
+    }
+    
+    .collapsible-content {
+        padding: 15px;
+        border-top: 1px solid #dee2e6;
+    }
+    
+    .json-preview {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 10px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.85rem;
+        max-height: 300px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+    }
+    
+    .expand-icon {
+        transition: transform 0.3s ease;
+    }
+    
+    .expand-icon.expanded {
+        transform: rotate(90deg);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -500,6 +642,27 @@ class MCPClient:
             return response
         except Exception as e:
             return f"❌ Error executing service creation: {str(e)}"
+    
+    async def confirm_delete_service(self, instance_name, service_type="l2circuit"):
+        """Execute confirmed service deletion"""
+        try:
+            response = await self.call_tool("confirm_delete_service", {
+                "instance_name": instance_name,
+                "service_type": service_type
+            })
+            return response
+        except Exception as e:
+            return f"❌ Error executing service deletion: {str(e)}"
+    
+    async def submit_service_forms(self, form_data):
+        """Submit filled service forms to the server"""
+        try:
+            response = await self.call_tool("submit_service_forms", {
+                "form_data": json.dumps(form_data)
+            })
+            return response
+        except Exception as e:
+            return f"❌ Error submitting forms: {str(e)}"
     
     async def handle_legacy_query(self, message):
         """Fallback method for queries when GPT-4 is not available"""
@@ -621,9 +784,7 @@ def create_downloadable_csv(df):
     return output.getvalue()
 
 def extract_l3vpn_services_from_ref_data(ref_data):
-    """
-    Extract L3VPN service information from the complex ref_data structure and convert to DataFrame
-    """
+    """Extract L3VPN service information from the complex ref_data structure and convert to DataFrame"""
     services_list = []
     print(f"DEBUG: extract_l3vpn_services_from_ref_data called with keys: {list(ref_data.keys()) if isinstance(ref_data, dict) else 'Not a dict'}")
     
@@ -695,9 +856,7 @@ def extract_l3vpn_services_from_ref_data(ref_data):
     return services_list
 
 def extract_l2circuit_services_from_ref_data(ref_data):
-    """
-    Extract L2 Circuit service information from the ref_data structure and convert to DataFrame
-    """
+    """Extract L2 Circuit service information from the ref_data structure and convert to DataFrame"""
     services_list = []
     print(f"DEBUG: extract_l2circuit_services_from_ref_data called with keys: {list(ref_data.keys()) if isinstance(ref_data, dict) else 'Not a dict'}")
     
@@ -795,9 +954,7 @@ def extract_l2circuit_services_from_ref_data(ref_data):
     return services_list
 
 def extract_evpn_services_from_ref_data(ref_data):
-    """
-    Extract EVPN service information from the ref_data structure and convert to DataFrame
-    """
+    """Extract EVPN service information from the ref_data structure and convert to DataFrame"""
     services_list = []
     print(f"DEBUG: extract_evpn_services_from_ref_data called with keys: {list(ref_data.keys()) if isinstance(ref_data, dict) else 'Not a dict'}")
     
@@ -929,15 +1086,455 @@ def extract_evpn_services_from_ref_data(ref_data):
     print(f"DEBUG: Final EVPN services_list length: {len(services_list)}")
     return services_list
 
+def display_service_forms(form_templates, metadata=None):
+    """Display collapsible forms for service configuration with unique keys for multiple services"""
+    if not form_templates:
+        st.error("❌ No form templates provided")
+        return None
+    
+    st.markdown("---")
+    st.markdown("### 📋 Service Configuration Forms")
+    
+    service_type = form_templates[0]["fields"][0]["value"] if form_templates else "l2circuit"
+    total_services = len(form_templates)
+    
+    # Enhanced message for default values approval
+    st.markdown(f"""
+    <div class="confirmation-panel">
+        <h4>📝 Review and Confirm Configuration for {total_services} {service_type.upper()} service(s)</h4>
+        <p><strong>🔧 Default Values Pre-populated:</strong> The system has filled in default values. 
+        Please review and modify any values as needed before proceeding.</p>
+        <p><strong>📁 Collapsible Forms:</strong> Each service has its own expandable section below.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Initialize session state for form data if not exists
+    if 'service_form_data' not in st.session_state:
+        st.session_state.service_form_data = {}
+    
+    filled_forms = []
+    
+    # Create individual collapsible forms for each service
+    for i, form_template in enumerate(form_templates):
+        service_index = form_template.get("service_index", i + 1)
+        form_id = form_template.get("form_id", f"form_{i}")
+        
+        # Extract service name for the expander title
+        service_name = "Unknown Service"
+        for field in form_template.get("fields", []):
+            if field["field_name"] == "service_name":
+                service_name = field["value"]
+                break
+        
+        # Create collapsible expander for each service
+        with st.expander(f"🛠️ Service {service_index}: {service_name}", expanded=(i == 0)):  # First one expanded by default
+            
+            # Use unique form key for each service
+            unique_form_key = f"service_config_form_{service_index}_{i}"
+            
+            with st.form(unique_form_key):
+                st.markdown(f"""
+                <div class="form-container">
+                    <div class="form-header">
+                        ⚙️ Configuration for Service {service_index}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Create form fields
+                form_data = {
+                    "service_index": service_index,
+                    "form_id": form_id,
+                    "fields": []
+                }
+                
+                # Categorize fields
+                basic_fields = ["service_type", "customer_name", "service_name", "source_node", "dest_node"]
+                network_fields = ["source_peer_addr", "dest_peer_addr", "vc_id", "vlan_id"]
+                port_fields = ["source_port_id", "dest_port_id", "source_port_access_id", "dest_port_access_id"]
+                
+                # Basic Service Information Section
+                st.markdown("#### 📋 Basic Service Information")
+                basic_col1, basic_col2 = st.columns(2)
+                
+                field_counter = 0
+                for field in form_template.get("fields", []):
+                    if field["field_name"] in basic_fields:
+                        field_name = field["field_name"]
+                        display_name = field["display_name"]
+                        field_type = field["type"]
+                        field_value = field["value"]
+                        field_required = field.get("required", False)
+                        field_description = field.get("description", "")
+                        
+                        # Use unique widget key including service index
+                        widget_key = f"{unique_form_key}_{field_name}"
+                        
+                        current_col = basic_col1 if field_counter % 2 == 0 else basic_col2
+                        
+                        with current_col:
+                            st.markdown(f"**{display_name}{'*' if field_required else ''}**")
+                            if field_description:
+                                st.caption(field_description)
+                            
+                            if field_type == "select":
+                                options = field.get("options", [])
+                                if field_value and field_value in options:
+                                    default_index = options.index(field_value)
+                                else:
+                                    default_index = 0
+                                
+                                selected_value = st.selectbox(
+                                    f"Select {display_name}",
+                                    options=options,
+                                    index=default_index,
+                                    key=widget_key,
+                                    label_visibility="collapsed"
+                                )
+                            elif field_type == "number":
+                                selected_value = st.number_input(
+                                    f"Enter {display_name}",
+                                    value=int(field_value) if str(field_value).isdigit() else 0,
+                                    key=widget_key,
+                                    label_visibility="collapsed"
+                                )
+                            else:  # text
+                                selected_value = st.text_input(
+                                    f"Enter {display_name}",
+                                    value=field_value,
+                                    key=widget_key,
+                                    label_visibility="collapsed"
+                                )
+                            
+                            form_data["fields"].append({
+                                "field_name": field_name,
+                                "display_name": display_name,
+                                "type": field_type,
+                                "value": str(selected_value),
+                                "required": field_required,
+                                "description": field_description
+                            })
+                        
+                        field_counter += 1
+                
+                # Network Configuration Section
+                st.markdown("#### 🌐 Network Configuration (Default Values)")
+                st.info("💡 These are system defaults that can be customized:")
+                
+                network_col1, network_col2 = st.columns(2)
+                
+                for field in form_template.get("fields", []):
+                    if field["field_name"] in network_fields:
+                        field_name = field["field_name"]
+                        display_name = field["display_name"]
+                        field_type = field["type"]
+                        field_value = field["value"]
+                        field_required = field.get("required", False)
+                        field_description = field.get("description", "")
+                        
+                        # Use unique widget key including service index
+                        widget_key = f"{unique_form_key}_{field_name}"
+                        
+                        current_col = network_col1 if field_counter % 2 == 0 else network_col2
+                        
+                        with current_col:
+                            st.markdown(f"**🔧 {display_name}{'*' if field_required else ''}**")
+                            if field_description:
+                                st.caption(f"⚙️ {field_description}")
+                            
+                            if field_type == "number":
+                                selected_value = st.number_input(
+                                    f"Enter {display_name}",
+                                    value=int(field_value) if str(field_value).isdigit() else 0,
+                                    key=widget_key,
+                                    label_visibility="collapsed",
+                                    help=f"Default: {field_value}"
+                                )
+                            else:  # text
+                                selected_value = st.text_input(
+                                    f"Enter {display_name}",
+                                    value=field_value,
+                                    key=widget_key,
+                                    label_visibility="collapsed",
+                                    help=f"Default: {field_value}"
+                                )
+                            
+                            form_data["fields"].append({
+                                "field_name": field_name,
+                                "display_name": display_name,
+                                "type": field_type,
+                                "value": str(selected_value),
+                                "required": field_required,
+                                "description": field_description
+                            })
+                        
+                        field_counter += 1
+                
+                # Port Configuration Section
+                st.markdown("#### 🔌 Port Configuration (Default Values)")
+                st.info("💡 Default port settings - modify if needed:")
+                
+                port_col1, port_col2 = st.columns(2)
+                
+                for field in form_template.get("fields", []):
+                    if field["field_name"] in port_fields:
+                        field_name = field["field_name"]
+                        display_name = field["display_name"]
+                        field_type = field["type"]
+                        field_value = field["value"]
+                        field_required = field.get("required", False)
+                        field_description = field.get("description", "")
+                        
+                        # Use unique widget key including service index
+                        widget_key = f"{unique_form_key}_{field_name}"
+                        
+                        current_col = port_col1 if field_counter % 2 == 0 else port_col2
+                        
+                        with current_col:
+                            st.markdown(f"**🔌 {display_name}{'*' if field_required else ''}**")
+                            if field_description:
+                                st.caption(f"🔧 {field_description}")
+                            
+                            selected_value = st.text_input(
+                                f"Enter {display_name}",
+                                value=field_value,
+                                key=widget_key,
+                                label_visibility="collapsed",
+                                help=f"Default: {field_value}"
+                            )
+                            
+                            form_data["fields"].append({
+                                "field_name": field_name,
+                                "display_name": display_name,
+                                "type": field_type,
+                                "value": str(selected_value),
+                                "required": field_required,
+                                "description": field_description
+                            })
+                        
+                        field_counter += 1
+                
+                # Individual form submit button
+                st.markdown("---")
+                col1, col2 = st.columns([1, 1])
+                
+                with col1:
+                    service_submitted = st.form_submit_button(
+                        f"✅ Save Service {service_index}",
+                        use_container_width=True
+                    )
+                
+                with col2:
+                    service_reset = st.form_submit_button(
+                        f"🔄 Reset Service {service_index}",
+                        use_container_width=True
+                    )
+                
+                # Handle individual service form submission
+                if service_submitted:
+                    # Validate this service's required fields
+                    validation_errors = []
+                    for field in form_data["fields"]:
+                        if field["required"] and not field["value"].strip():
+                            validation_errors.append(f"Service {service_index}: {field['display_name']} is required")
+                    
+                    if validation_errors:
+                        st.error("❌ Please fill in all required fields:")
+                        for error in validation_errors:
+                            st.error(f"• {error}")
+                    else:
+                        # Store this service's data
+                        st.session_state.service_form_data[f"service_{service_index}"] = form_data
+                        st.success(f"✅ Service {service_index} configuration saved!")
+                
+                elif service_reset:
+                    # Clear this service's data
+                    if f"service_{service_index}" in st.session_state.service_form_data:
+                        del st.session_state.service_form_data[f"service_{service_index}"]
+                    st.info(f"🔄 Service {service_index} configuration reset to defaults")
+                    st.rerun()
+                
+                # Always add current form data to filled_forms for submission
+                filled_forms.append(form_data)
+    
+    # Global submission section outside all expanders
+    st.markdown("---")
+    st.markdown("### 🚀 Submit All Configurations")
+    
+    # Show saved services summary
+    saved_services = list(st.session_state.service_form_data.keys())
+    if saved_services:
+        st.success(f"✅ Saved configurations: {len(saved_services)} of {total_services} services")
+        for service_key in saved_services:
+            service_data = st.session_state.service_form_data[service_key]
+            service_name = "Unknown"
+            for field in service_data["fields"]:
+                if field["field_name"] == "service_name":
+                    service_name = field["value"]
+                    break
+            st.info(f"📋 Service {service_data['service_index']}: {service_name}")
+    else:
+        st.warning("⚠️ No services saved yet. Please save individual service configurations above.")
+    
+    # Configuration summary
+    st.markdown("""
+    <div style="background-color: #d4edda; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745; color: #155724;">
+    <h5 style="color: #155724; margin-bottom: 10px;">📋 Default Values Applied</h5>
+    <p style="color: #155724; margin-bottom: 8px;"><strong>🔧 Network:</strong> Peer addresses (10.40.40.6, 10.40.40.1), VC ID (100)</p>
+    <p style="color: #155724; margin-bottom: 8px;"><strong>🔌 Ports:</strong> Source/dest ports (et-0/0/6, et-0/0/8), Access IDs (111)</p>
+    <p style="color: #155724; margin-bottom: 8px;"><strong>🎲 VLAN:</strong> Random ID (1000-1100 range)</p>
+    <p style="color: #155724; margin-bottom: 0px;"><strong>✏️ Modification:</strong> All values can be changed in forms above</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Global submit buttons
+    col1, col2, col3 = st.columns([1, 1, 2])
+    
+    with col1:
+        if st.button("🚀 Submit All Services", key="submit_all_services"):
+            # Check if all services are saved
+            if len(saved_services) == total_services:
+                # Prepare final submission data from saved services
+                final_forms = []
+                for service_key in sorted(saved_services):
+                    final_forms.append(st.session_state.service_form_data[service_key])
+                
+                st.session_state.pending_form_submission = final_forms
+                # Clear saved form data
+                st.session_state.service_form_data = {}
+                st.success("🚀 All services submitted for configuration generation!")
+                st.rerun()
+            else:
+                st.error(f"❌ Please save all {total_services} service configurations first. Currently saved: {len(saved_services)}")
+    
+    with col2:
+        if st.button("❌ Cancel All", key="cancel_all_services"):
+            # Clear all saved data
+            st.session_state.service_form_data = {}
+            st.info("❌ All configurations cancelled")
+            st.rerun()
+    
+    with col3:
+        st.caption(f"💡 Save each service configuration individually, then submit all {total_services} services together.")
+    
+    return filled_forms
+
+def display_delete_confirmation(delete_data, metadata=None):
+    """Display delete service confirmation with service details and collapsible JSON"""
+    if not delete_data:
+        st.error("❌ Invalid delete confirmation data")
+        return
+    
+    # Header
+    service_type = delete_data.get('service_type', 'Unknown')
+    service_name = delete_data.get('service_name', 'Unknown Service')
+    instance_name = delete_data.get('instance_name', 'Unknown')
+    customer_name = delete_data.get('customer_name', 'Unknown')
+    source_node = delete_data.get('source_node', 'Unknown')
+    dest_node = delete_data.get('dest_node', 'Unknown')
+    
+    st.markdown(f"""
+    <div class="delete-confirmation-panel">
+        <h3>⚠️ Confirm Service Deletion</h3>
+        <p><strong>You are about to permanently delete the following service:</strong></p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Service Overview
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.markdown(f"**Service Type:** {service_name}")
+    with col2:
+        st.markdown(f"**Instance Name:** {instance_name}")
+    with col3:
+        st.markdown(f"**Customer:** {customer_name}")
+    with col4:
+        st.markdown(f"**Route:** {source_node} → {dest_node}")
+    
+    # Service Details
+    st.markdown("### 📋 Service Details")
+    
+    service_details = delete_data.get('service_details', {})
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown(f"**Customer ID:** {service_details.get('customer_id', 'Unknown')[:8]}...")
+        st.markdown(f"**Current Status:** {service_details.get('instance_status', 'Unknown')}")
+    with col2:
+        st.markdown(f"**Design ID:** {service_details.get('design_id', 'Unknown')}")
+        st.markdown(f"**Design Version:** {service_details.get('design_version', 'Unknown')}")
+    with col3:
+        created_time = service_details.get('created_time', 'Unknown')
+        updated_time = service_details.get('updated_time', 'Unknown')
+        if created_time != 'Unknown':
+            try:
+                created_dt = datetime.fromisoformat(created_time.replace('Z', '+00:00'))
+                st.markdown(f"**Created:** {created_dt.strftime('%Y-%m-%d %H:%M')}")
+            except:
+                st.markdown(f"**Created:** {created_time}")
+        if updated_time != 'Unknown':
+            try:
+                updated_dt = datetime.fromisoformat(updated_time.replace('Z', '+00:00'))
+                st.markdown(f"**Updated:** {updated_dt.strftime('%Y-%m-%d %H:%M')}")
+            except:
+                st.markdown(f"**Updated:** {updated_time}")
+    
+    # Collapsible JSON Configuration
+    with st.expander(f"📄 Complete Service JSON Configuration for {instance_name}", expanded=False):
+        delete_config = delete_data.get('delete_config', {})
+        if delete_config:
+            st.markdown("**Current Service Configuration:**")
+            st.code(json.dumps(delete_config, indent=2), language="json")
+            
+            # Download button for JSON
+            json_str = json.dumps(delete_config, indent=2)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            st.download_button(
+                label=f"📄 Download Service JSON",
+                data=json_str,
+                file_name=f"{instance_name}_service_config_{timestamp}.json",
+                mime="application/json",
+                key=f"json_dl_delete_{instance_name}_{timestamp}",
+                use_container_width=True
+            )
+        else:
+            st.warning("⚠️ Service configuration data not available")
+    
+    # Warning
+    warning_message = delete_data.get('warning', f"This will DELETE service '{instance_name}'. This action cannot be undone.")
+    st.markdown(f"""
+    <div class="delete-warning">
+        <h4>⚠️ Warning</h4>
+        <p>{warning_message}</p>
+        <p><strong>This action is permanent and cannot be reversed!</strong></p>
+        <p><strong>Service Type:</strong> {service_name}</p>
+        <p><strong>Service Name:</strong> {instance_name}</p>
+        <p><strong>Customer:</strong> {customer_name}</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    return delete_data
+
+def debug_session_state():
+    """Debug function to show session state contents"""
+    with st.expander("🐛 Debug Session State", expanded=False):
+        st.write("**Current Session State Keys:**")
+        for key in st.session_state:
+            if "form" in key.lower() or "pending" in key.lower():
+                st.write(f"- {key}: {type(st.session_state[key])}")
+        
+        st.write("**All Session State:**")
+        st.json({k: str(v)[:200] for k, v in st.session_state.items() if not k.startswith('_')})
+
 def display_service_configurations(config_data, metadata=None):
-    """Display service configurations with JUNOS CLI for user confirmation"""
+    """Display service configurations with JUNOS CLI in collapsible format"""
     if not config_data or "generated_configs" not in config_data:
         st.error("❌ Invalid configuration data")
         return
     
     # Header
     service_type = config_data.get('service_type', 'Unknown')
-    service_name = config_data.get('service_name', 'Unknown')
+    service_name = config_data.get('service_name', 'Unknown Service')
     total_services = config_data.get('total_services', 0)
     customer_name = config_data.get('customer_name', 'Unknown')
     source_node = config_data.get('source_node', 'Unknown')
@@ -964,14 +1561,15 @@ def display_service_configurations(config_data, metadata=None):
     with col4:
         st.markdown(f"**Route:** {source_node} → {dest_node}")
     
-    # Configuration Details with CLI
+    # Configuration Details with CLI in collapsible sections
     st.markdown("### 📋 Configuration Details")
     
     for i, config in enumerate(config_data.get('generated_configs', [])):
-        # Use instance_id and timestamp to ensure unique keys
         instance_id = config.get('instance_id', f'service_{i}')
-        safe_instance_id = instance_id.replace('-', '_').replace('.', '_')
+        customer_id = config.get('customer_id', 'Unknown')
+        vlan_id = config.get('vlan_id', 'N/A')
         
+        # Service overview
         st.markdown(f"""
         <div class="service-config-card">
             <div class="service-config-header">
@@ -979,87 +1577,98 @@ def display_service_configurations(config_data, metadata=None):
             </div>
         """, unsafe_allow_html=True)
         
-        # # Service metadata
-        # col1, col2, col3 = st.columns(3)
-        # with col1:
-        #     st.markdown(f"""
-        #     <div class="config-detail">
-        #         <strong>Instance ID:</strong> {instance_id}
-        #     </div>
-        #     """, unsafe_allow_html=True)
+        # Service metadata in columns
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown(f"**Instance ID:** {instance_id}")
+        with col2:
+            st.markdown(f"**Customer ID:** {customer_id[:8]}...")
+        with col3:
+            if vlan_id and vlan_id != 'N/A':
+                st.markdown(f"**VLAN ID:** {vlan_id}")
         
-        # with col2:
-        #     st.markdown(f"""
-        #     <div class="config-detail">
-        #         <strong>Customer ID:</strong> {config['customer_id'][:8]}...
-        #     </div>
-        #     """, unsafe_allow_html=True)
+        # JSON Configuration (Collapsible)
+        with st.expander(f"📄 JSON Configuration for {instance_id}", expanded=False):
+            # Find the corresponding full JSON config
+            full_configs = config_data.get('configurations', [])
+            full_config = full_configs[i] if i < len(full_configs) else {}
+            
+            if full_config:
+                st.code(json.dumps(full_config, indent=2), language="json")
+                
+                # Download button for JSON
+                json_str = json.dumps(full_config, indent=2)
+                st.download_button(
+                    label=f"📄 Download JSON Configuration",
+                    data=json_str,
+                    file_name=f"{instance_id}_config.json",
+                    mime="application/json",
+                    key=f"json_dl_{instance_id}_{i}_{session_timestamp}",
+                    use_container_width=True
+                )
+            else:
+                st.warning("⚠️ Full JSON configuration not available")
         
-        # with col3:
-        #     if config.get('vlan_id'):
-        #         st.markdown(f"""
-        #         <div class="config-detail">
-        #             <strong>VLAN ID:</strong> {config['vlan_id']}
-        #         </div>
-        #         """, unsafe_allow_html=True)
-        
-        # Display JUNOS CLI configurations
+        # JUNOS CLI Configuration (Collapsible)
         cli_configs = config.get('cli_configs', {})
         
         if cli_configs and not cli_configs.get('error') and not cli_configs.get('info'):
-            st.markdown("#### 🖥️ JUNOS CLI Configuration")
-            
-            # Create tabs for each device if multiple devices
-            if len(cli_configs) > 1:
-                device_tabs = st.tabs([f"📟 {device}" for device in cli_configs.keys()])
-                for device_idx, (tab, (device, cli_config)) in enumerate(zip(device_tabs, cli_configs.items())):
-                    with tab:
-                        st.markdown(f"**Device:** {device}")
-                        st.code(cli_config, language="bash")
-                        
-                        # Create unique key using instance_id, device, and indices
-                        safe_device = device.replace('-', '_').replace('.', '_')
-                        unique_key = f"cli_dl_{safe_instance_id}_{safe_device}_{i}_{device_idx}_{session_timestamp}"
-                        
-                        # Download button for each device CLI
-                        st.download_button(
-                            label=f"📄 Download CLI for {device}",
-                            data=cli_config,
-                            file_name=f"{instance_id}_{device}_config.txt",
-                            mime="text/plain",
-                            key=unique_key,
-                            use_container_width=True
-                        )
-            else:
-                # Single device - display directly
-                device, cli_config = next(iter(cli_configs.items()))
-                st.markdown(f"**Target Device:** {device}")
-                st.code(cli_config, language="bash")
+            with st.expander(f"🖥️ JUNOS CLI Configuration for {instance_id}", expanded=False):
                 
-                # Create unique key for single device download
-                safe_device = device.replace('-', '_').replace('.', '_')
-                unique_key = f"cli_single_{safe_instance_id}_{safe_device}_{i}_{session_timestamp}"
-                
-                # Download button
-                st.download_button(
-                    label=f"📄 Download CLI Configuration",
-                    data=cli_config,
-                    file_name=f"{instance_id}_{device}_config.txt",
-                    mime="text/plain",
-                    key=unique_key,
-                    use_container_width=True
-                )
+                # Create tabs for each device if multiple devices
+                if len(cli_configs) > 1:
+                    device_tabs = st.tabs([f"📟 {device}" for device in cli_configs.keys()])
+                    for device_idx, (tab, (device, cli_config)) in enumerate(zip(device_tabs, cli_configs.items())):
+                        with tab:
+                            st.markdown(f"**Device:** {device}")
+                            st.code(cli_config, language="bash")
+                            
+                            # Create unique key using instance_id, device, and indices
+                            safe_device = device.replace('-', '_').replace('.', '_')
+                            unique_key = f"cli_dl_{instance_id}_{safe_device}_{i}_{device_idx}_{session_timestamp}"
+                            
+                            # Download button for each device CLI
+                            st.download_button(
+                                label=f"📄 Download CLI for {device}",
+                                data=cli_config,
+                                file_name=f"{instance_id}_{device}_config.txt",
+                                mime="text/plain",
+                                key=unique_key,
+                                use_container_width=True
+                            )
+                else:
+                    # Single device - display directly
+                    device, cli_config = next(iter(cli_configs.items()))
+                    st.markdown(f"**Target Device:** {device}")
+                    st.code(cli_config, language="bash")
+                    
+                    # Create unique key for single device download
+                    safe_device = device.replace('-', '_').replace('.', '_')
+                    unique_key = f"cli_single_{instance_id}_{safe_device}_{i}_{session_timestamp}"
+                    
+                    # Download button
+                    st.download_button(
+                        label=f"📄 Download CLI Configuration",
+                        data=cli_config,
+                        file_name=f"{instance_id}_{device}_config.txt",
+                        mime="text/plain",
+                        key=unique_key,
+                        use_container_width=True
+                    )
         
         elif cli_configs.get('error'):
-            st.error(f"❌ CLI Generation Error: {cli_configs['error']}")
-            st.info("💡 The service can still be created, but CLI preview is not available.")
+            with st.expander(f"⚠️ CLI Configuration Issue for {instance_id}", expanded=False):
+                st.error(f"❌ CLI Generation Error: {cli_configs['error']}")
+                st.info("💡 The service can still be created, but CLI preview is not available.")
         
         elif cli_configs.get('info'):
-            st.info(f"ℹ️ {cli_configs['info']}")
-            st.caption("💡 CLI generation requires OpenAI API configuration.")
+            with st.expander(f"ℹ️ CLI Configuration Info for {instance_id}", expanded=False):
+                st.info(f"ℹ️ {cli_configs['info']}")
+                st.caption("💡 CLI generation requires OpenAI API configuration.")
         
         else:
-            st.warning("⚠️ No CLI configuration available for preview.")
+            with st.expander(f"⚠️ CLI Configuration for {instance_id}", expanded=False):
+                st.warning("⚠️ No CLI configuration available for preview.")
         
         st.markdown("</div>", unsafe_allow_html=True)
     
@@ -1208,8 +1817,8 @@ def display_workflow_results(workflow_data, metadata=None):
 def parse_response_for_dataframe(response_text):
     """
     Enhanced function to parse the response and extract dataframe data for all service types,
-    including service configurations and execution results
-    Returns: (has_dataframe, dataframe, remaining_text, data_metadata, workflow_data, config_data, execution_data)
+    including service configurations, execution results, and deletion confirmations
+    Returns: (has_dataframe, dataframe, remaining_text, data_metadata, workflow_data, config_data, execution_data, form_data, delete_data)
     """
     # First, try to handle truncated JSON by attempting to fix it
     if response_text.strip().endswith(',') or not response_text.strip().endswith('}'):
@@ -1243,6 +1852,30 @@ def parse_response_for_dataframe(response_text):
         
         # Check if this looks like a dataframe response
         if isinstance(data, dict):
+            # Check for deletion confirmation
+            if data.get('action_required') == 'delete_confirmation':
+                print("DEBUG: Detected deletion confirmation requirement")
+                
+                service_type = data.get('service_type', 'unknown')
+                service_name = data.get('service_name', 'Unknown Service')
+                instance_name = data.get('instance_name', 'Unknown')
+                
+                clean_response = f"🤖 **Service Deletion Confirmation Required**\n\n⚠️ **Service Found:** {service_name} service '{instance_name}'\n🔍 **Details:** Review service configuration and confirm deletion\n⚠️ **Warning:** This action is permanent and cannot be undone"
+                
+                return False, None, clean_response, None, None, None, None, None, data
+            
+            # Check for form input requirement
+            if data.get('action_required') == 'form_input':
+                print("DEBUG: Detected form input requirement")
+                
+                service_type = data.get('service_type', 'unknown')
+                message = data.get('message', 'Form input required')
+                form_templates = data.get('form_templates', [])
+                
+                clean_response = f"🤖 **Configuration Forms Required**\n\n📋 {message}\n🛠️ **Service Type:** {service_type.upper()}\n📝 **Forms:** {len(form_templates)} service(s) need detailed configuration"
+                
+                return False, None, clean_response, None, None, None, None, data, None
+            
             # Check for service configuration (user confirmation required)
             if data.get('action_required') == 'user_confirmation':
                 print("DEBUG: Detected service configuration for user confirmation")
@@ -1253,7 +1886,7 @@ def parse_response_for_dataframe(response_text):
                 
                 clean_response = f"🤖 **Configuration Generated Successfully!**\n\n✅ Generated {total_services} {service_name} configuration(s)\n📊 Ready for deployment\n⚠️ **User confirmation required before proceeding**"
                 
-                return False, None, clean_response, None, None, data, None
+                return False, None, clean_response, None, None, data, None, None, None
             
             # Check for execution results
             if 'service_results' in data and 'total_services' in data:
@@ -1270,27 +1903,30 @@ def parse_response_for_dataframe(response_text):
                 else:
                     clean_response = f"❌ **Service Creation Failed**\n\n❌ All {total_services} services failed to create\n📊 Check detailed results below"
                 
-                return False, None, clean_response, None, None, None, data
+                return False, None, clean_response, None, None, None, data, None, None
             
-            # Check for workflow result (service creation)
-            if data.get('success') is not None and 'steps' in data and 'service_type' in data:
-                print("DEBUG: Detected service creation workflow result")
+            # Check for workflow result (service creation or deletion)
+            if data.get('success') is not None and 'steps' in data and ('service_type' in data or 'instance_name' in data):
+                print("DEBUG: Detected service workflow result")
                 
                 # Format workflow response
                 service_type = data.get('service_type', 'unknown')
-                instance_id = data.get('instance_id', 'unknown')
+                instance_id = data.get('instance_id', data.get('instance_name', 'unknown'))
                 success = data.get('success', False)
                 
                 if success:
                     final_status = data.get('final_status', 'unknown')
                     if final_status == 'active':
-                        clean_response = f"🎉 **Service Creation Successful!**\n\n✅ {service_type.upper()} service '{instance_id}' has been created and is now **ACTIVE**!"
+                        clean_response = f"🎉 **Service Operation Successful!**\n\n✅ {service_type.upper()} service '{instance_id}' operation completed successfully!"
+                    elif final_status == 'deleted':
+                        clean_response = f"🗑️ **Service Deletion Successful!**\n\n✅ {service_type.upper()} service '{instance_id}' has been permanently deleted!"
                     else:
-                        clean_response = f"⏳ **Service Creation In Progress...**\n\n✅ {service_type.upper()} service '{instance_id}' has been created.\n📊 Current status: **{final_status.upper()}**"
+                        clean_response = f"⏳ **Service Operation In Progress...**\n\n✅ {service_type.upper()} service '{instance_id}' operation initiated.\n📊 Current status: **{final_status.upper()}**"
                 else:
-                    clean_response = f"❌ **Service Creation Failed**\n\n{service_type.upper()} service '{instance_id}' could not be created. Check the workflow details below."
+                    operation_type = "deletion" if any(step.get('action', '').startswith('delete') for step in data.get('steps', [])) else "creation"
+                    clean_response = f"❌ **Service {operation_type.title()} Failed**\n\n{service_type.upper()} service '{instance_id}' {operation_type} could not be completed. Check the workflow details below."
                 
-                return False, None, clean_response, None, data, None, None
+                return False, None, clean_response, None, data, None, None, None, None
             
             # Check for GPT-4 analysis result format with ref_data
             if 'result' in data and isinstance(data['result'], dict):
@@ -1302,6 +1938,40 @@ def parse_response_for_dataframe(response_text):
                 print(f"DEBUG: has data = {'data' in result_data}")
                 print(f"DEBUG: action_required = {result_data.get('action_required')}")
                 
+                # Check for deletion confirmation from GPT-4 result
+                if result_data.get('action_required') == 'delete_confirmation':
+                    print("DEBUG: GPT-4 result requires deletion confirmation")
+                    
+                    service_type = result_data.get('service_type', 'l2circuit')
+                    service_name = result_data.get('service_name', 'Unknown Service')
+                    instance_name = result_data.get('instance_name', 'Unknown')
+                    
+                    clean_response = f"""🤖 **Routing Director Analysis:** {data.get('gpt4_analysis', {}).get('reasoning', 'Service deletion request analyzed.')}
+
+⚠️ **Action Required:** Deletion Confirmation
+🛠️ **Service Type:** {service_type.upper()}
+🗑️ **Service Found:** {service_name} service '{instance_name}'
+⚠️ **Warning:** This action is permanent and cannot be undone"""
+                    
+                    return False, None, clean_response, result_data, None, None, None, None, result_data
+                
+                # Check for form input requirement from GPT-4 result
+                if result_data.get('action_required') == 'form_input':
+                    print("DEBUG: GPT-4 result requires form input")
+                    
+                    service_type = result_data.get('service_type', 'l2circuit')
+                    message = result_data.get('message', 'Form input required')
+                    form_templates = result_data.get('form_templates', [])
+                    
+                    clean_response = f"""🤖 **Routing Director Analysis:** {data.get('gpt4_analysis', {}).get('reasoning', 'Service creation request analyzed.')}
+
+📋 **Action Required:** Form Input
+🛠️ **Service Type:** {service_type.upper()}
+📝 **Message:** {message}
+🔧 **Forms:** {len(form_templates)} service(s) need detailed configuration"""
+                    
+                    return False, None, clean_response, result_data, None, None, None, result_data, None
+                
                 # Check for service configuration confirmation
                 if result_data.get('action_required') == 'user_confirmation':
                     print("DEBUG: GPT-4 generated service configurations for confirmation")
@@ -1310,21 +1980,21 @@ def parse_response_for_dataframe(response_text):
                     service_name = result_data.get('service_name', service_type.upper())
                     total_services = result_data.get('total_services', 0)
                     
-                    clean_response = f"""🤖 **GPT-4 Analysis:** {data.get('gpt4_analysis', {}).get('reasoning', 'Service configurations generated successfully.')}
+                    clean_response = f"""🤖 **Routing Director Analysis:** {data.get('gpt4_analysis', {}).get('reasoning', 'Service configurations generated successfully.')}
 
 ✅ **Result:** Generated {total_services} {service_name} configuration(s)
 📊 **Configurations Ready:** Please review and confirm below
 🛠️ **Service Type:** {service_type.upper()}
 ⚠️ **Action Required:** User confirmation needed to proceed"""
                     
-                    return False, None, clean_response, result_data, None, result_data, None
+                    return False, None, clean_response, result_data, None, result_data, None, None, None
                 
                 # Check for validation errors
                 if 'validation_errors' in result_data:
                     validation_errors = result_data['validation_errors']
                     error_list = '\n'.join([f"• {error}" for error in validation_errors])
                     
-                    clean_response = f"""🤖 **GPT-4 Analysis:** {data.get('gpt4_analysis', {}).get('reasoning', 'Request analyzed but validation failed.')}
+                    clean_response = f"""🤖 **Routing Director:** {data.get('gpt4_analysis', {}).get('reasoning', 'Request analyzed but validation failed.')}
 
 ❌ **Validation Errors:**
 {error_list}
@@ -1334,7 +2004,7 @@ def parse_response_for_dataframe(response_text):
 • Check that source and destination nodes exist
 • Verify the service type is supported"""
                     
-                    return False, None, clean_response, result_data, None, None, None
+                    return False, None, clean_response, result_data, None, None, None, None, None
                 
                 # Check for file upload requirement
                 if result_data.get('action_required') == 'file_upload':
@@ -1344,7 +2014,7 @@ def parse_response_for_dataframe(response_text):
                     message = result_data.get('message', 'File upload required.')
                     
                     # Return file upload response
-                    file_upload_response = f"""🤖 **GPT-4 Analysis:** {data.get('gpt4_analysis', {}).get('reasoning', 'Service creation requested.')}
+                    file_upload_response = f"""🤖 **Routing Director Analysis:** {data.get('gpt4_analysis', {}).get('reasoning', 'Service creation requested.')}
 
 📁 **Action Required:** File Upload
 🛠️ **Service Type:** {service_name}
@@ -1352,7 +2022,7 @@ def parse_response_for_dataframe(response_text):
 
 Please upload your JSON configuration file using the file uploader below."""
                     
-                    return False, None, file_upload_response, result_data, None, None, None
+                    return False, None, file_upload_response, result_data, None, None, None, None, None
                 
                 # Check if this is a services response
                 if result_data.get('data_type') == 'services':
@@ -1388,14 +2058,14 @@ Please upload your JSON configuration file using the file uploader below."""
                                     recommended_tool = data.get('gpt4_analysis', {}).get('recommended_tool', 'fetch_all_instances')
                                     service_name = metadata['service_name']
                                     
-                                    clean_response = f"""🤖 **GPT-4 Analysis:** {gpt4_reasoning}
+                                    clean_response = f"""🤖 **Routing Director Analysis:** {gpt4_reasoning}
 
 ✅ **Result:** Found {len(df)} {service_name} service(s) 
 📊 **Tool Used:** {recommended_tool}
 🔍 **Data Source:** {metadata['source']}
 🛠️ **Service Type:** {service_type.upper()}"""
                                     
-                                    return True, df, clean_response, metadata, None, None, None
+                                    return True, df, clean_response, metadata, None, None, None, None, None
                             except Exception as e:
                                 print(f"DEBUG: Error creating DataFrame from data field: {e}")
                     
@@ -1445,14 +2115,14 @@ Please upload your JSON configuration file using the file uploader below."""
                                     recommended_tool = data.get('gpt4_analysis', {}).get('recommended_tool', 'fetch_all_instances')
                                     service_name = metadata['service_name']
                                     
-                                    clean_response = f"""🤖 **GPT-4 Analysis:** {gpt4_reasoning}
+                                    clean_response = f"""🤖 **Routing Director Analysis:** {gpt4_reasoning}
 
 ✅ **Result:** Found {len(df)} {service_name} service(s) 
 📊 **Tool Used:** {recommended_tool}
 🔍 **Data Source:** {metadata['source']}
 🛠️ **Service Type:** {service_type.upper()}"""
                                     
-                                    return True, df, clean_response, metadata, None, None, None
+                                    return True, df, clean_response, metadata, None, None, None, None, None
                                 else:
                                     print(f"DEBUG: No services extracted from ref_data for service type {service_type}")
                             except Exception as e:
@@ -1484,7 +2154,7 @@ Please upload your JSON configuration file using the file uploader below."""
                         # Format the remaining response
                         clean_response = f"✅ Successfully retrieved {len(df)} service records."
                         
-                        return True, df, clean_response, metadata, None, None, None
+                        return True, df, clean_response, metadata, None, None, None, None, None
                     except Exception as e:
                         print(f"Error parsing direct dataframe: {e}")
             
@@ -1500,7 +2170,7 @@ Please upload your JSON configuration file using the file uploader below."""
                         'timestamp': datetime.now().isoformat()
                     }
                     clean_response = f"✅ Successfully parsed {len(df)} records into tabular format."
-                    return True, df, clean_response, metadata, None, None, None
+                    return True, df, clean_response, metadata, None, None, None, None, None
                 except Exception as e:
                     print(f"Error parsing list to dataframe: {e}")
         
@@ -1517,12 +2187,12 @@ Please upload your JSON configuration file using the file uploader below."""
                         'timestamp': datetime.now().isoformat()
                     }
                     clean_response = f"✅ Successfully parsed {len(df)} records into tabular format."
-                    return True, df, clean_response, metadata, None, None, None
+                    return True, df, clean_response, metadata, None, None, None, None, None
             except Exception as e:
                 print(f"Error parsing direct list: {e}")
         
         print("DEBUG: No matching condition found for dataframe parsing")
-        return False, None, response_text, None, None, None, None
+        return False, None, response_text, None, None, None, None, None, None
         
     except json.JSONDecodeError as e:
         print(f"DEBUG: JSON decode error: {e}")
@@ -1544,16 +2214,16 @@ Please upload your JSON configuration file using the file uploader below."""
                         'timestamp': datetime.now().isoformat()
                     }
                     clean_response = f"✅ Successfully parsed CSV text into {len(df)} records."
-                    return True, df, clean_response, metadata, None, None, None
+                    return True, df, clean_response, metadata, None, None, None, None, None
             except Exception as e:
                 print(f"Error parsing CSV text: {e}")
         
-        return False, None, response_text, None, None, None, None
+        return False, None, response_text, None, None, None, None, None, None
     except Exception as e:
         print(f"DEBUG: Unexpected error in parse_response_for_dataframe: {e}")
         import traceback
         traceback.print_exc()
-        return False, None, response_text, None, None, None, None
+        return False, None, response_text, None, None, None, None, None, None
 
 def display_enhanced_dataframe(df, metadata=None, chat_index=None):
     """Display dataframe with enhanced features"""
@@ -1684,7 +2354,7 @@ def display_enhanced_dataframe(df, metadata=None, chat_index=None):
             st.warning("🔍 No data to display")
 
 def initialize_session_state():
-    """Initialize session state variables"""
+    """Initialize session state variables with better management"""
     if 'mcp_client' not in st.session_state:
         st.session_state.mcp_client = MCPClient()
     if 'connection_status' not in st.session_state:
@@ -1693,8 +2363,22 @@ def initialize_session_state():
         st.session_state.chat_history = []
     if 'pending_confirmation' not in st.session_state:
         st.session_state.pending_confirmation = None
+    if 'pending_forms' not in st.session_state:
+        st.session_state.pending_forms = None
+    if 'pending_form_submission' not in st.session_state:
+        st.session_state.pending_form_submission = None
+    if 'pending_delete_confirmation' not in st.session_state:
+        st.session_state.pending_delete_confirmation = None
+    
+    # Clear any old form states on restart
+    keys_to_remove = [key for key in st.session_state.keys() if key.startswith('form_state_') and key != 'form_state_current']
+    for key in keys_to_remove:
+        del st.session_state[key]
 
-def add_to_chat_history(user_message, assistant_response, is_gpt4=False, dataframe=None, metadata=None, workflow_data=None, config_data=None, execution_data=None, is_create=False):
+if st.sidebar.checkbox("🐛 Debug Mode"):
+    debug_session_state()
+
+def add_to_chat_history(user_message, assistant_response, is_gpt4=False, dataframe=None, metadata=None, workflow_data=None, config_data=None, execution_data=None, form_data=None, delete_data=None, is_create=False, is_form=False, is_delete=False):
     """Add a new message pair to chat history"""
     timestamp = datetime.now().strftime('%H:%M:%S')
     st.session_state.chat_history.append({
@@ -1703,11 +2387,15 @@ def add_to_chat_history(user_message, assistant_response, is_gpt4=False, datafra
         'assistant': assistant_response,
         'is_gpt4': is_gpt4,
         'is_create': is_create,
+        'is_form': is_form,
+        'is_delete': is_delete,
         'dataframe': dataframe,
         'metadata': metadata,
         'workflow_data': workflow_data,
         'config_data': config_data,
-        'execution_data': execution_data
+        'execution_data': execution_data,
+        'form_data': form_data,
+        'delete_data': delete_data
     })
 
 def display_chat_history():
@@ -1731,7 +2419,13 @@ def display_chat_history():
         """, unsafe_allow_html=True)
         
         # Assistant response - use different styling based on message type
-        if chat.get('config_data') is not None:
+        if chat.get('delete_data') is not None:
+            message_class = "delete-message"
+            assistant_prefix = "🗑️ Deletion Assistant"
+        elif chat.get('form_data') is not None:
+            message_class = "form-message"
+            assistant_prefix = "📋 Form Assistant"
+        elif chat.get('config_data') is not None:
             message_class = "confirmation-message"
             assistant_prefix = "🛠️ Configuration Assistant"
         elif chat.get('execution_data') is not None:
@@ -1740,9 +2434,12 @@ def display_chat_history():
         elif chat.get('is_create', False):
             message_class = "create-message"
             assistant_prefix = "🚀 Service Creation Assistant"
+        elif chat.get('is_delete', False):
+            message_class = "delete-message"
+            assistant_prefix = "🗑️ Service Deletion Assistant"
         elif chat.get('is_gpt4', False):
             message_class = "gpt4-message"
-            assistant_prefix = "🤖 GPT-4 Assistant"
+            assistant_prefix = "🤖 Routing Director Assistant"
         else:
             message_class = "assistant-message"
             assistant_prefix = "Assistant"
@@ -1755,8 +2452,16 @@ def display_chat_history():
         </div>
         """, unsafe_allow_html=True)
         
+        # Display deletion confirmation if present
+        if chat.get('delete_data') is not None:
+            display_delete_confirmation(chat['delete_data'], metadata=chat.get('metadata'))
+        
+        # Display service forms if present
+        elif chat.get('form_data') is not None:
+            display_service_forms(chat['form_data'].get('form_templates', []), metadata=chat.get('metadata'))
+        
         # Display service configurations if present
-        if chat.get('config_data') is not None:
+        elif chat.get('config_data') is not None:
             display_service_configurations(chat['config_data'], metadata=chat.get('metadata'))
         
         # Display execution results if present
@@ -1859,37 +2564,58 @@ def main():
         if st.button("🗑️ Clear Chat"):
             st.session_state.chat_history = []
             st.session_state.pending_confirmation = None
+            st.session_state.pending_forms = None
+            st.session_state.pending_form_submission = None
+            st.session_state.pending_delete_confirmation = None
             st.success("Chat cleared!")
             st.rerun()
     
     # GPT-4 AI Hint Box
     if st.session_state.connection_status and st.session_state.mcp_client.gpt4_enabled:
-        with st.expander("💡 Intelligent Natural Language Service Creation", expanded=False):
+        with st.expander("💡 Intelligent Natural Language Service Creation & Deletion", expanded=False):
             st.markdown("""
                 <div class="ai-hint">
-                🤖 <strong>GPT-4 Powered Natural Language Service Creation</strong><br>
-                Create network services using simple, natural language commands. No need for complex JSON configurations!
+                🤖 <strong>GPT-4 Powered Natural Language Service Management</strong><br>
+                Create and delete network services using simple, natural language commands. The system will analyze your request and prompt for any missing details through interactive forms.
                 <br><br>
                 <strong>Supported Services:</strong>
                 <ul>
-                    <li>🔗 <strong>L2 Circuit</strong> - Layer 2 circuit services (currently supported)</li>
+                    <li>🔗 <strong>L2 Circuit</strong> - Layer 2 circuit services (fully supported with forms)</li>
                     <li>🌐 <strong>L3VPN</strong> - Layer 3 VPN services (coming soon)</li>
                     <li>⚡ <strong>EVPN</strong> - Ethernet VPN services (coming soon)</li>
                 </ul>
                 <br>
-                <strong>Natural Language Examples:</strong>
+                <strong>Service Creation Examples:</strong>
                 <ul>
-                    <li><strong>Single Service:</strong> "Create an L2 circuit from PNH-ACX7024-A1 to TH-ACX7100-A6 for customer SINET with service name test-l2ckt"</li>
-                    <li><strong>Multiple Services:</strong> "Create 3 L2 circuits from PNH-ACX7024-A1 to TH-ACX7100-A6 for customer SINET with names circuit1, circuit2, circuit3"</li>
-                    <li><strong>Auto-naming:</strong> "Provision 2 L2 circuits between PNH-ACX7024-A1 and TH-ACX7100-A6 for SINET customer"</li>
+                    <li><strong>Basic Request:</strong> "Create an L2 circuit for customer SINET"</li>
+                    <li><strong>Detailed Request:</strong> "Create L2 circuit from PNH-ACX7024-A1 to TH-ACX7100-A6 for customer SINET with service name test-l2ckt"</li>
+                    <li><strong>Multiple Services:</strong> "Create 3 L2 circuits from PNH-ACX7024-A1 to TH-ACX7100-A6 for customer SINET"</li>
                 </ul>
                 <br>
-                <strong>🚀 Intelligent Workflow:</strong><br>
-                1. <strong>Parse Request:</strong> GPT-4 extracts service details from your natural language<br>
-                2. <strong>Generate Configs:</strong> Automatically creates JSON configurations<br>
-                3. <strong>User Confirmation:</strong> Review configurations before deployment<br>
-                4. <strong>Execute Services:</strong> 2-step provisioning workflow with real-time status<br>
-                5. <strong>Results Summary:</strong> Complete success/failure reporting
+                <strong>Service Deletion Examples:</strong>
+                <ul>
+                    <li><strong>Simple Deletion:</strong> "Delete l2circuit1-135006"</li>
+                    <li><strong>Verbose Deletion:</strong> "Remove the L2 circuit service named l2circuit1-135006"</li>
+                    <li><strong>Alternative:</strong> "Terminate service l2circuit1-135006"</li>
+                </ul>
+                <br>
+                <strong>🚀 Enhanced Interactive Workflow:</strong><br>
+                <strong>For Service Creation:</strong><br>
+                1. <strong>Parse Request:</strong> GPT-4 extracts basic service details from your natural language<br>
+                2. <strong>Interactive Forms:</strong> System presents forms for missing mandatory details<br>
+                3. <strong>Form Validation:</strong> Real-time validation of all required fields<br>
+                4. <strong>Generate Configs:</strong> Automatically creates JSON and JUNOS CLI configurations<br>
+                5. <strong>User Confirmation:</strong> Review configurations in collapsible sections before deployment<br>
+                6. <strong>Execute Services:</strong> 2-step provisioning workflow with real-time status<br>
+                7. <strong>Results Summary:</strong> Complete success/failure reporting<br>
+                <br>
+                <strong>For Service Deletion:</strong><br>
+                1. <strong>Extract Service Name:</strong> GPT-4 identifies the service to delete from natural language<br>
+                2. <strong>Find Service:</strong> System searches across all customers to locate the service<br>
+                3. <strong>Show Confirmation:</strong> Display complete service details with collapsible JSON configuration<br>
+                4. <strong>User Confirmation:</strong> Review service details and confirm permanent deletion<br>
+                5. <strong>Execute Deletion:</strong> 3-step deletion workflow (modify operation → create order → execute)<br>
+                6. <strong>Verify Deletion:</strong> Confirm service removal and provide status updates
                 </div>
                 """, unsafe_allow_html=True)
     
@@ -1905,6 +2631,12 @@ def main():
                     st.markdown(f"🤖 **{tool_name}** (GPT-4 Powered): {tool_desc}")
                 elif tool_name == 'create_service_intelligent':
                     st.markdown(f"🚀 **{tool_name}** (Natural Language Creation): {tool_desc}")
+                elif tool_name == 'delete_service':
+                    st.markdown(f"🗑️ **{tool_name}** (Natural Language Deletion): {tool_desc}")
+                elif tool_name == 'confirm_delete_service':
+                    st.markdown(f"⚠️ **{tool_name}** (Confirmed Deletion): {tool_desc}")
+                elif tool_name == 'submit_service_forms':
+                    st.markdown(f"📋 **{tool_name}** (Interactive Forms): {tool_desc}")
                 elif tool_name == 'execute_service_creation':
                     st.markdown(f"⚡ **{tool_name}** (Bulk Execution): {tool_desc}")
                 elif tool_name == 'create_service':
@@ -1918,6 +2650,49 @@ def main():
                 else:
                     st.markdown(f"**{tool_name}**: {tool_desc}")
     
+    # Check for pending form submission
+    if st.session_state.pending_form_submission:
+        with st.spinner("🚀 Processing forms and generating configurations..."):
+            try:
+                # Submit forms to server
+                response = run_async(
+                    st.session_state.mcp_client.submit_service_forms(
+                        st.session_state.pending_form_submission
+                    )
+                )
+                
+                # Parse response for configuration results
+                has_dataframe, dataframe, clean_response, metadata, workflow_data, config_data, execution_data, form_data, delete_data = parse_response_for_dataframe(response)
+                
+                # Add to chat history
+                add_to_chat_history(
+                    f"Submitted configuration forms for {len(st.session_state.pending_form_submission)} service(s)",
+                    clean_response,
+                    is_gpt4=False,
+                    is_create=True,
+                    dataframe=dataframe,
+                    metadata=metadata,
+                    workflow_data=workflow_data,
+                    config_data=config_data,
+                    execution_data=execution_data,
+                    form_data=form_data,
+                    delete_data=delete_data
+                )
+                
+                # Set pending confirmation if config data available
+                if config_data and config_data.get('action_required') == 'user_confirmation':
+                    st.session_state.pending_confirmation = config_data
+                
+                # Clear pending form submission
+                st.session_state.pending_form_submission = None
+                
+                st.success("✅ Forms processed successfully!")
+                st.rerun()
+                
+            except Exception as e:
+                st.error(f"❌ Error processing forms: {str(e)}")
+                st.session_state.pending_form_submission = None
+    
     # Chat area
     st.markdown("---")
     
@@ -1925,6 +2700,74 @@ def main():
     chat_container = st.container()
     with chat_container:
         display_chat_history()
+    
+    # Service deletion confirmation section
+    if st.session_state.pending_delete_confirmation:
+        st.markdown("---")
+        st.markdown("### 🗑️ Service Deletion Confirmation")
+        
+        delete_data = st.session_state.pending_delete_confirmation
+        instance_name = delete_data.get('instance_name', 'Unknown')
+        service_type = delete_data.get('service_type', 'l2circuit')
+        service_name = delete_data.get('service_name', 'Unknown Service')
+        
+        st.markdown(f"""
+        <div class="delete-confirmation-panel">
+            <h4>⚠️ Confirm Permanent Deletion of {service_name} Service</h4>
+            <p>You are about to permanently delete service: <strong>{instance_name}</strong></p>
+            <p><strong>WARNING:</strong> This action cannot be undone!</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns([1, 1, 2])
+        
+        with col1:
+            if st.button("🗑️ Confirm Deletion", key="confirm_deletion"):
+                with st.spinner(f"🗑️ Deleting service {instance_name}..."):
+                    try:
+                        # Execute service deletion
+                        response = run_async(
+                            st.session_state.mcp_client.confirm_delete_service(
+                                instance_name, 
+                                service_type
+                            )
+                        )
+                        
+                        # Parse response for execution results
+                        has_dataframe, dataframe, clean_response, metadata, workflow_data, config_data_result, execution_data, form_data, delete_data_result = parse_response_for_dataframe(response)
+                        
+                        # Add to chat history
+                        add_to_chat_history(
+                            f"Confirmed deletion of {service_name} service '{instance_name}'",
+                            clean_response,
+                            is_gpt4=False,
+                            is_delete=True,
+                            dataframe=dataframe,
+                            metadata=metadata,
+                            workflow_data=workflow_data,
+                            config_data=config_data_result,
+                            execution_data=execution_data,
+                            form_data=form_data,
+                            delete_data=delete_data_result
+                        )
+                        
+                        # Clear pending delete confirmation
+                        st.session_state.pending_delete_confirmation = None
+                        
+                        st.success(f"🗑️ Service deletion completed!")
+                        st.rerun()
+                        
+                    except Exception as e:
+                        st.error(f"❌ Error deleting service: {str(e)}")
+        
+        with col2:
+            if st.button("❌ Cancel", key="cancel_deletion"):
+                st.session_state.pending_delete_confirmation = None
+                st.info("Service deletion cancelled")
+                st.rerun()
+        
+        with col3:
+            st.caption("💡 Review the service details above before confirming. Deletion cannot be undone.")
     
     # Service configuration confirmation section
     if st.session_state.pending_confirmation:
@@ -1957,7 +2800,7 @@ def main():
                         )
                         
                         # Parse response for execution results
-                        has_dataframe, dataframe, clean_response, metadata, workflow_data, config_data_result, execution_data = parse_response_for_dataframe(response)
+                        has_dataframe, dataframe, clean_response, metadata, workflow_data, config_data_result, execution_data, form_data, delete_data = parse_response_for_dataframe(response)
                         
                         # Add to chat history
                         add_to_chat_history(
@@ -1969,7 +2812,9 @@ def main():
                             metadata=metadata,
                             workflow_data=workflow_data,
                             config_data=config_data_result,
-                            execution_data=execution_data
+                            execution_data=execution_data,
+                            form_data=form_data,
+                            delete_data=delete_data
                         )
                         
                         # Clear pending confirmation
@@ -1999,7 +2844,7 @@ def main():
             col1, col2 = st.columns([5, 1])
             
             with col1:
-                placeholder_text = "Try: 'Create 2 L2 circuits from PNH-ACX7024-A1 to TH-ACX7100-A6 for customer SINET'" if st.session_state.mcp_client.gpt4_enabled else "Type your message..."
+                placeholder_text = "Try: 'Create 2 L2 circuits from PNH-ACX7024-A1 to TH-ACX7100-A6 for customer SINET' or 'Delete l2circuit1-135006'" if st.session_state.mcp_client.gpt4_enabled else "Type your message..."
                 user_input = st.text_input(
                     "Type your message:",
                     placeholder=placeholder_text,
@@ -2015,11 +2860,39 @@ def main():
                         # Send message to MCP server
                         response = run_async(st.session_state.mcp_client.send_message(user_input))
                         
-                        # Check if response contains dataframe data, workflow data, config data, or execution data
-                        has_dataframe, dataframe, clean_response, metadata, workflow_data, config_data, execution_data = parse_response_for_dataframe(response)
+                        # Check if response contains dataframe data, workflow data, config data, execution data, form data, or delete data
+                        has_dataframe, dataframe, clean_response, metadata, workflow_data, config_data, execution_data, form_data, delete_data = parse_response_for_dataframe(response)
+                        
+                        # Check if deletion confirmation is required
+                        if delete_data and delete_data.get('action_required') == 'delete_confirmation':
+                            # Set pending delete confirmation
+                            st.session_state.pending_delete_confirmation = delete_data
+                            
+                            # Add to chat history
+                            add_to_chat_history(
+                                user_input,
+                                clean_response,
+                                is_gpt4=st.session_state.mcp_client.gpt4_enabled,
+                                is_delete=True,
+                                delete_data=delete_data
+                            )
+                        
+                        # Check if forms are required
+                        elif form_data and form_data.get('action_required') == 'form_input':
+                            # Set pending forms
+                            st.session_state.pending_forms = form_data
+                            
+                            # Add to chat history
+                            add_to_chat_history(
+                                user_input,
+                                clean_response,
+                                is_gpt4=st.session_state.mcp_client.gpt4_enabled,
+                                is_form=True,
+                                form_data=form_data
+                            )
                         
                         # Check if config confirmation is required
-                        if config_data and config_data.get('action_required') == 'user_confirmation':
+                        elif config_data and config_data.get('action_required') == 'user_confirmation':
                             # Set pending confirmation
                             st.session_state.pending_confirmation = config_data
                             
@@ -2035,14 +2908,18 @@ def main():
                             # Add to chat history
                             add_to_chat_history(
                                 user_input, 
-                                clean_response if (has_dataframe or workflow_data or config_data or execution_data) else response, 
+                                clean_response if (has_dataframe or workflow_data or config_data or execution_data or form_data or delete_data) else response, 
                                 is_gpt4=st.session_state.mcp_client.gpt4_enabled,
                                 is_create=workflow_data is not None or config_data is not None or execution_data is not None,
+                                is_form=form_data is not None,
+                                is_delete=delete_data is not None or (workflow_data is not None and 'delete' in str(workflow_data).lower()),
                                 dataframe=dataframe if has_dataframe else None,
                                 metadata=metadata if has_dataframe else None,
                                 workflow_data=workflow_data,
                                 config_data=config_data,
-                                execution_data=execution_data
+                                execution_data=execution_data,
+                                form_data=form_data,
+                                delete_data=delete_data
                             )
                         
                         # Rerun to update chat display
@@ -2058,40 +2935,57 @@ def main():
         1. Click "**🔌 Connect**" to establish connection with the MCP server
         2. Once connected, GPT-4 will automatically analyze your queries and detect service types
         3. Use natural language to create services like:
-           - **"Create an L2 circuit from PNH-ACX7024-A1 to TH-ACX7100-A6 for customer SINET with service name test-circuit"**
-           - **"Create 3 L2 circuits from PNH-ACX7024-A1 to TH-ACX7100-A6 for customer SINET with names circuit1, circuit2, circuit3"**
-           - **"Provision 2 L2 circuits between PNH-ACX7024-A1 and TH-ACX7100-A6 for SINET customer"**
-        4. The system will:
+           - **"Create an L2 circuit for customer SINET"** (system will prompt for missing details)
+           - **"Create L2 circuit from PNH-ACX7024-A1 to TH-ACX7100-A6 for customer SINET with service name test-circuit"**
+           - **"Create 3 L2 circuits from PNH-ACX7024-A1 to TH-ACX7100-A6 for customer SINET"**
+        4. Use natural language to delete services like:
+           - **"Delete l2circuit1-135006"** (system will show confirmation with service details)
+           - **"Remove the L2 circuit service named test-circuit"**
+           - **"Terminate service l2circuit1-135006"**
+        5. The system will:
            - Parse your request using GPT-4
-           - Generate appropriate JSON configurations
-           - Ask for your confirmation
-           - Execute the complete 2-step provisioning workflow
+           - Present interactive forms for any missing mandatory details (for creation)
+           - Show confirmation details with collapsible JSON configuration (for deletion)
+           - Generate appropriate JSON configurations with JUNOS CLI (for creation)
+           - Ask for your confirmation with collapsible config sections
+           - Execute the complete provisioning/deletion workflow
            - Provide real-time status updates
-        5. View services with queries like:
+        6. View services with queries like:
            - **"Show me all L3VPN service instances"**
            - **"Display L2 circuit services"**
            - **"Show me order history"**
         
         ### 🛠️ Supported Network Services:
-        - **🔗 L2 Circuit** - Layer 2 circuit services (fully supported with natural language creation)
-        - **🌐 L3VPN** - Layer 3 VPN services (viewing supported, creation coming soon)
-        - **⚡ EVPN** - Ethernet VPN services (viewing supported, creation coming soon)
+        - **🔗 L2 Circuit** - Layer 2 circuit services (fully supported with interactive forms and deletion)
+        - **🌐 L3VPN** - Layer 3 VPN services (viewing supported, creation/deletion coming soon)
+        - **⚡ EVPN** - Ethernet VPN services (viewing supported, creation/deletion coming soon)
         
-        ### 🚀 Intelligent Service Creation Features:
+        ### 🚀 Enhanced Interactive Service Management Features:
         - **Natural Language Processing:** Describe what you want in plain English
-        - **Automatic Configuration Generation:** JSON configs created automatically
-        - **Multi-Service Support:** Create multiple services in one request
-        - **Smart Validation:** Checks customer, devices, and service parameters
-        - **User Confirmation:** Review before deployment
-        - **2-Step Workflow:** Upload service → Deploy service
+        - **Interactive Forms:** System prompts for missing mandatory details through user-friendly forms
+        - **Real-time Validation:** Forms validate required fields before submission
+        - **Default Values:** Forms pre-populate with intelligent defaults based on your request
+        - **Multi-Service Support:** Create multiple services with individual forms for each
+        - **Automatic Configuration Generation:** JSON configs and JUNOS CLI created automatically
+        - **Collapsible Views:** Review configurations in organized, collapsible sections
+        - **User Confirmation:** Review before deployment with expandable config sections
+        - **Service Deletion:** Intelligent service lookup with confirmation workflow
+        - **2-Step Workflow:** Upload service → Deploy service (creation) / Modify → Execute (deletion)
         - **Real-time Status:** Monitor progress and final results
         - **Bulk Operations:** Handle multiple services efficiently
         
         ### 💡 Example Queries:
-        **Service Creation:**
-        - "Create an L2 circuit from PNH-ACX7024-A1 to TH-ACX7100-A6 for customer SINET"
-        - "Create 5 L2 circuits for SINET customer between PNH-ACX7024-A1 and TH-ACX7100-A6"
-        - "Deploy L2 circuit services from device A to device B for customer X with names svc1, svc2"
+        **Service Creation (with automatic form assistance):**
+        - "Create an L2 circuit for customer SINET" (system will ask for missing details)
+        - "Create L2 circuit from PNH-ACX7024-A1 to TH-ACX7100-A6 for customer SINET"
+        - "Create 5 L2 circuits for SINET customer between two devices"
+        - "Deploy L2 circuit services with custom VLAN and peer addresses"
+        
+        **Service Deletion (with intelligent confirmation):**
+        - "Delete l2circuit1-135006" (system will find and show service details)
+        - "Remove service test-circuit-001"
+        - "Terminate the L2 circuit named my-service"
+        - "Delete service l2ckt-abc-123"
         
         **Service Viewing:**
         - "Show me all L3VPN services"
@@ -2111,7 +3005,7 @@ def main():
         st.markdown("""
         <div style="text-align: center; color: #666; font-size: 0.8rem;">
             🤖 This chat is powered by <strong>Routing Director & OpenAI GPT-4 Intelligence</strong><br>
-            <small>Natural language service creation • Intelligent routing • Real-time provisioning</small>
+            <small>Natural language service creation & deletion • Interactive forms • Intelligent routing • Real-time provisioning</small>
         </div>
         """, unsafe_allow_html=True)
 

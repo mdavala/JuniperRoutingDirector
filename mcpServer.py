@@ -1,10 +1,11 @@
 from fastmcp import FastMCP
 import httpx
-import sys
+import sys, re
 import json
 import base64
 import logging
 import asyncio
+import traceback
 import pandas as pd
 from typing import Dict, List, Optional, Any
 from datetime import datetime
@@ -165,6 +166,14 @@ ENDPOINTS = {
         required_params=["org_id", "customer_id", "instance_id"],
         optional_params=[]
     ),
+    # ADD THIS NEW ENDPOINT
+    "get_customers": APIEndpoint(
+        "/service-orchestration/api/v1/orgs/{org_id}/order/customers",
+        "GET",
+        "Get all customers for an Organization with their customer IDs and details.",
+        required_params=["org_id"],
+        optional_params=["per-page", "current-offset", "filter"]
+    ),
 }
 
 class ParagonAuth:
@@ -190,7 +199,7 @@ class ParagonAuth:
         credentials = f"{self.username}:{self.password}"
         encoded_credentials = base64.b64encode(credentials.encode()).decode()
         return f"Basic {encoded_credentials}"
-    
+
     def get_auth_token(self) -> Optional[str]:
         """Get authentication token from API (if token-based auth is used)"""
         try:
@@ -286,6 +295,16 @@ def is_service_creation_request(user_query: str) -> bool:
     query_lower = user_query.lower()
     return any(keyword in query_lower for keyword in creation_keywords)
 
+def is_service_deletion_request(user_query: str) -> bool:
+        """Check if the user query is requesting service deletion"""
+        deletion_keywords = [
+            "delete", "remove", "destroy", "terminate", "decommission", 
+            "tear down", "uninstall", "drop", "cancel", "disable"
+        ]
+    
+        query_lower = user_query.lower()
+        return any(keyword in query_lower for keyword in deletion_keywords)
+
 def analyze_query_with_gpt4(user_query: str) -> Dict[str, Any]:
     """
     Use GPT-4 to analyze user query and determine the best tool to call and service type
@@ -297,8 +316,9 @@ def analyze_query_with_gpt4(user_query: str) -> Dict[str, Any]:
             "service_type": "l2circuit"
         }
     
-    # Check if this is a service creation request
+    # Check if this is a service creation or deletion request
     is_creation = is_service_creation_request(user_query)
+    is_deletion = is_service_deletion_request(user_query)
     
     # Get available tools with their descriptions
     tools_info = []
@@ -313,7 +333,13 @@ def analyze_query_with_gpt4(user_query: str) -> Dict[str, Any]:
             "description": "Get detailed information about a specific instance. Use when user wants complete details about one particular instance.",
         },
         "create_service_intelligent": {
-            "description": "Create a new service using natural language processing. Use when user wants to create, provision, or deploy a new service with natural language descriptions.",
+            "description": "Create a new service using natural language processing. Use when user wants to create, provision, or deploy a new service with natural language descriptions. This will analyze requirements and generate forms if needed.",
+        },
+        "delete_service": {
+            "description": "Delete an existing service by name using intelligent analysis. Use when user wants to delete, remove, terminate, or decommission a service. Handles natural language deletion requests and provides confirmation workflow.",
+        },
+        "fetch_all_customers": {
+            "description": "Fetch all customers with their IDs and details. Use when you need customer information or as part of service operations.",
         },
         "get_api_endpoints": {
             "description": "List available API endpoints. Use when user asks about available APIs or system capabilities.",
@@ -329,13 +355,17 @@ def analyze_query_with_gpt4(user_query: str) -> Dict[str, Any]:
         keywords_str = ", ".join(service_info["keywords"][:3])  # Show first 3 keywords
         service_types_desc.append(f"- **{service_type}** ({service_info['name']}): Keywords like {keywords_str}")
     
-    # Adjust prompt based on whether this looks like a creation request
+    # Adjust prompt based on whether this looks like a creation or deletion request
     if is_creation:
-        creation_note = """
-IMPORTANT: This query appears to be requesting SERVICE CREATION. If the user is asking to create, provision, deploy, or add new services, use the 'create_service_intelligent' tool which can handle natural language service creation requests.
+        operation_note = """
+IMPORTANT: This query appears to be requesting SERVICE CREATION. If the user is asking to create, provision, deploy, or add new services, use the 'create_service_intelligent' tool which can handle natural language service creation requests and will prompt for additional details if needed.
+"""
+    elif is_deletion:
+        operation_note = """
+IMPORTANT: This query appears to be requesting SERVICE DELETION. If the user is asking to delete, remove, terminate, or decommission services, use the 'delete_service' tool which can handle natural language service deletion requests with intelligent analysis and confirmation workflow.
 """
     else:
-        creation_note = ""
+        operation_note = ""
     
     prompt = f"""
 You are an intelligent query analyzer for a Routing Director MCP server. Analyze the user's query and determine:
@@ -344,7 +374,7 @@ You are an intelligent query analyzer for a Routing Director MCP server. Analyze
 
 USER QUERY: "{user_query}"
 
-{creation_note}
+{operation_note}
 
 AVAILABLE TOOLS:
 {chr(10).join(tools_info)}
@@ -357,16 +387,19 @@ ANALYSIS GUIDELINES:
 2. If user asks about "orders", "history", "operations", "audit" -> use fetch_all_orders  
 3. If user wants details about one specific instance -> use get_instance_details
 4. If user wants to "create", "provision", "deploy", "add", "new service" -> use create_service_intelligent
-5. If user asks about "help", "capabilities", "endpoints", "APIs" -> use get_api_endpoints
+5. If user wants to "delete", "remove", "terminate", "decommission" service -> use delete_service
+6. If user asks about "customers" or needs customer information -> use fetch_all_customers
+7. If user asks about "help", "capabilities", "endpoints", "APIs" -> use get_api_endpoints
 
 SERVICE TYPE DETECTION:
 - Analyze keywords to determine if user is asking about L3VPN, L2 Circuit, or EVPN services
-- If no specific service type mentioned, default to "l2circuit" for create operations, "l3vpn" for read operations
+- If no specific service type mentioned, default to "l2circuit" for create/delete operations, "l3vpn" for read operations
 - Look for variations like "layer 3", "l3", "circuit", "evpn", "ethernet vpn", etc.
 
 IMPORTANT GUIDELINES:
 - For get_instance_details: extract the exact instance id mentioned
 - For create_service_intelligent: determine the service type from keywords
+- For delete_service: the tool will intelligently extract service name from natural language using GPT-4
 - Always specify the detected service_type
 
 Respond with a JSON object in this format:
@@ -397,7 +430,7 @@ Be precise with tool and service type selection.
             analysis = json.loads(gpt_response)
             
             if analysis.get("service_type") not in SERVICE_TYPES:
-                if analysis.get("tool") == "create_service_intelligent":
+                if analysis.get("tool") in ["create_service_intelligent", "delete_service"]:
                     analysis["service_type"] = "l2circuit"
                 else:
                     analysis["service_type"] = "l3vpn"
@@ -407,7 +440,7 @@ Be precise with tool and service type selection.
             logger.error(f"Failed to parse GPT-4 JSON response: {gpt_response}")
             return {
                 "reasoning": "Failed to parse GPT-4 response, using fallback",
-                "tool": "create_service_intelligent" if is_creation else "get_api_endpoints",
+                "tool": "delete_service" if is_deletion else ("create_service_intelligent" if is_creation else "get_api_endpoints"),
                 "service_type": detect_service_type_from_query(user_query)
             }
             
@@ -415,7 +448,7 @@ Be precise with tool and service type selection.
         logger.error(f"Error calling GPT-4: {e}")
         return {
             "reasoning": f"GPT-4 error: {str(e)}",
-            "tool": "create_service_intelligent" if is_creation else "get_api_endpoints",
+            "tool": "delete_service" if is_deletion else ("create_service_intelligent" if is_creation else "get_api_endpoints"),
             "service_type": detect_service_type_from_query(user_query)
         }
 
@@ -431,9 +464,8 @@ def make_api_request_sync(endpoint: str, params: Dict[str, Any] = None, method: 
         headers = auth.get_headers(use_basic_auth=True)
         
         # Use httpx sync client instead of async
-        with httpx.Client(verify=False, timeout=60.0) as client:  # Increased timeout for POST operations -> Need changes here [MDAVALA] check later
+        with httpx.Client(verify=False, timeout=60.0) as client:
             if params and method == "GET":
-                # -> Need changes here [MDAVALA] check later
                 query_params = {k: v for k, v in params.items() if not endpoint.find(f"{{{k}}}") >= 0}
                 if query_params:
                     url += "?" + urlencode(query_params)
@@ -493,7 +525,7 @@ def analyze_query(user_query: str) -> str:
     
     DESCRIPTION: Uses GPT-4 to intelligently analyze user queries, determine the most appropriate tool to call,
     identify the requested service type (L3VPN, L2 Circuit, or EVPN), and execute the recommended action.
-    This provides a natural language interface to all the Routing Director capabilities.
+    This provides a natural language interface to all the Routing Director capabilities including service creation and deletion.
     
     Args:
         user_query: Natural language query from the user
@@ -516,13 +548,27 @@ def analyze_query(user_query: str) -> str:
         service_type = analysis.get("service_type", "l2circuit")
         reasoning = analysis.get("reasoning", "No reasoning provided")
         
-        # Execute the recommended tool with service type if applicable
+        # Execute the recommended tool with appropriate parameters
         if recommended_tool == "fetch_all_instances":
             tool_result = execute_tool_by_name(recommended_tool, service_type=service_type)
         elif recommended_tool == "create_service_intelligent":
             tool_result = execute_tool_by_name(recommended_tool, user_query=user_query, service_type=service_type)
-        else:
+        elif recommended_tool == "delete_service":
+            # Pass user_query and service_type for intelligent deletion workflow
+            tool_result = execute_tool_by_name(recommended_tool, user_query=user_query, service_type=service_type)
+        elif recommended_tool == "fetch_all_customers":
             tool_result = execute_tool_by_name(recommended_tool)
+        elif recommended_tool == "fetch_all_orders":
+            tool_result = execute_tool_by_name(recommended_tool)
+        elif recommended_tool == "get_instance_details":
+            # For get_instance_details, we need to extract the instance name from the query
+            # This could be enhanced with GPT-4 as well, but for now use the existing logic
+            tool_result = execute_tool_by_name(recommended_tool, service_type=service_type)
+        elif recommended_tool == "get_api_endpoints":
+            tool_result = execute_tool_by_name(recommended_tool)
+        else:
+            # Fallback for any other tools
+            tool_result = execute_tool_by_name(recommended_tool, user_query=user_query, service_type=service_type)
         
         response = {
             "gpt4_analysis": {
@@ -541,6 +587,524 @@ def analyze_query(user_query: str) -> str:
         logger.error(error_msg)
         return json.dumps({"error": error_msg})
 
+def _fetch_all_customers() -> Dict[str, Any]:
+    """
+    Internal function to fetch all customers from Routing Director API.
+    """
+    try:
+        # Construct API endpoint
+        endpoint = ENDPOINTS["get_customers"]
+        api_path = endpoint.path.format(org_id=ORG_ID)
+        
+        # Make API call using synchronous function
+        result = make_api_request_sync(api_path)
+        
+        # Check for errors
+        if "error" in result:
+            return {"error": f"Error fetching customers: {result['error']}"}
+        
+        return {
+            "success": True,
+            "data_type": "customers",
+            "count": len(result) if isinstance(result, list) else len(result.get("customers", [])),
+            "data": result
+        }
+        
+    except Exception as e:
+        error_msg = f"An unexpected error occurred: {str(e)}"
+        logger.error(error_msg)
+        return {"error": error_msg}
+
+def fetch_all_customers() -> str:
+    """
+    WHEN TO USE: Use this tool when you need to get all customers with their IDs and details.
+    Essential for service operations that require customer ID lookup.
+    
+    DESCRIPTION: Fetches all customers from Routing Director API with their customer IDs,
+    names, and other customer details. This is often needed as a prerequisite for
+    service-specific operations like deletion.
+    
+    Returns:
+        JSON string containing customer data with IDs and details
+    """
+    result = _fetch_all_customers()
+    return json.dumps(result, indent=2)
+
+def _find_service_by_customer(instance_name: str, customers_data: List[Dict]) -> Optional[str]:
+    """
+    Helper function to find customer ID for a service by searching through all customers
+    """
+    try:
+        for customer in customers_data:
+            customer_id = customer.get("customer_id") or customer.get("id")
+            if customer_id:
+                # Try to get instance details for this customer
+                try:
+                    instance_endpoint = f"/service-orchestration/api/v1/orgs/{ORG_ID}/order/customers/{customer_id}/instances/{instance_name}"
+                    instance_result = make_api_request_sync(instance_endpoint)
+                    
+                    if "error" not in instance_result:
+                        logger.info(f"Found service '{instance_name}' in customer '{customer_id}'")
+                        return customer_id
+                except Exception:
+                    continue
+        
+        return None
+    except Exception as e:
+        logger.error(f"Error finding customer for service '{instance_name}': {e}")
+        return None
+
+def _extract_service_name_with_gpt4(user_query: str) -> Optional[str]:
+    """
+    Use GPT-4 to extract service/instance name from natural language deletion request
+    """
+    if not openai_client:
+        logger.warning("OpenAI client not available, falling back to regex extraction")
+        return _extract_service_name_regex(user_query)
+    
+    prompt = f"""
+You are a service name extractor for network service deletion requests. 
+Extract the exact service/instance name from the user's deletion request.
+
+USER QUERY: "{user_query}"
+
+INSTRUCTIONS:
+1. Look for service names, instance names, or identifiers that the user wants to delete
+2. Common patterns: "delete service_name", "remove l2circuit1-123", "terminate my-service-name"
+3. Return ONLY the service name/ID, no other text
+4. If multiple services mentioned, return the first one
+5. If no specific service name found, return "NONE"
+
+Examples:
+- "Delete l2circuit service l2circuit1-182128" → "l2circuit1-182128"
+- "Remove service my-test-service" → "my-test-service"
+- "Terminate l3vpn-customer-001" → "l3vpn-customer-001"
+- "Delete the service called test-circuit" → "test-circuit"
+
+Respond with ONLY the service name or "NONE":
+"""
+
+    try:
+        response = openai_client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a precise service name extractor. Respond with only the service name or 'NONE'."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.1,
+            max_tokens=100
+        )
+        
+        extracted_name = response.choices[0].message.content.strip()
+        logger.info(f"GPT-4 extracted service name: '{extracted_name}' from query: '{user_query}'")
+        
+        if extracted_name == "NONE" or not extracted_name:
+            logger.warning(f"GPT-4 could not extract service name from: '{user_query}'")
+            return None
+        return extracted_name
+        
+    except Exception as e:
+        logger.error(f"Error using GPT-4 for service name extraction: {e}")
+        return None
+
+def _delete_service_intelligent(instance_name: str, service_type: str = "l2circuit", confirm: bool = False) -> Dict[str, Any]:
+    """
+    Intelligent service deletion using confirmation workflow:
+    1. Find customer ID for the service
+    2. Get service details 
+    3. Return confirmation request OR execute deletion
+    """
+    try:
+        if not confirm:
+            # Step 1: Find the service and show confirmation details
+            logger.info(f"🔍 Finding service '{instance_name}' for deletion confirmation")
+            
+            # Get all customers to find the service
+            customers_result = _fetch_all_customers()
+            if "error" in customers_result:
+                return {
+                    "error": f"Cannot find service for confirmation: {customers_result['error']}"
+                }
+            
+            customers_data = customers_result.get("data", [])
+            if isinstance(customers_data, dict):
+                customers_data = customers_data.get("customers", [])
+            
+            # Find customer_id for this service
+            customer_id = _find_service_by_customer(instance_name, customers_data)
+            
+            if not customer_id:
+                return {
+                    "error": f"Service '{instance_name}' not found in any customer",
+                    "suggestion": "Please check the service name and try again",
+                    "service_type": service_type
+                }
+            
+            # Get service details for confirmation
+            instance_endpoint = f"/service-orchestration/api/v1/orgs/{ORG_ID}/order/customers/{customer_id}/instances/{instance_name}"
+            instance_result = make_api_request_sync(instance_endpoint)
+            
+            if "error" in instance_result:
+                return {
+                    "error": f"Cannot get service details: {instance_result['error']}",
+                    "service_type": service_type
+                }
+            
+            # FIX: Handle case where API returns a list instead of dict
+            if isinstance(instance_result, list):
+                if len(instance_result) > 0:
+                    # Take the first element if it's a list
+                    service_data = instance_result[0]
+                    logger.info(f"API returned list, using first element for service '{instance_name}'")
+                else:
+                    return {
+                        "error": f"Service '{instance_name}' data is empty",
+                        "service_type": service_type
+                    }
+            elif isinstance(instance_result, dict):
+                # It's already a dictionary
+                service_data = instance_result
+            else:
+                return {
+                    "error": f"Unexpected response format for service '{instance_name}': {type(instance_result)}",
+                    "service_type": service_type
+                }
+            
+            # Extract service information for confirmation display
+            service_details = {
+                "instance_id": service_data.get("instance_id"),
+                "customer_id": service_data.get("customer_id"),
+                "instance_status": service_data.get("instance_status", "unknown"),
+                "operation": service_data.get("operation", "unknown"),
+                "created_time": service_data.get("created_time"),
+                "updated_time": service_data.get("updated_time"),
+                "design_id": service_data.get("design_id"),
+                "design_version": service_data.get("design_version")
+            }
+            
+            # Try to extract customer name and other details
+            customer_name = "Unknown"
+            source_node = "Unknown"
+            dest_node = "Unknown"
+            
+            try:
+                if service_type == "l2circuit" and "l2vpn_ntw" in service_data:
+                    vpn_service = service_data["l2vpn_ntw"]["vpn_services"]["vpn_service"][0]
+                    customer_name = vpn_service.get("customer_name", "Unknown")
+                    
+                    vpn_nodes = vpn_service.get("vpn_nodes", {}).get("vpn_node", [])
+                    if len(vpn_nodes) >= 2:
+                        source_node = vpn_nodes[0].get("vpn_node_id", "Unknown")
+                        dest_node = vpn_nodes[1].get("vpn_node_id", "Unknown")
+                    elif len(vpn_nodes) == 1:
+                        source_node = vpn_nodes[0].get("vpn_node_id", "Unknown")
+            except (KeyError, IndexError, TypeError) as e:
+                logger.warning(f"Could not extract service details: {e}")
+                pass
+            
+            return {
+                "action_required": "delete_confirmation",
+                "service_type": service_type,
+                "service_name": SERVICE_TYPES.get(service_type, {}).get("name", service_type.upper()),
+                "instance_name": instance_name,
+                "customer_id": customer_id,
+                "customer_name": customer_name,
+                "source_node": source_node,
+                "dest_node": dest_node,
+                "service_details": service_details,
+                "warning": f"This will permanently DELETE service '{instance_name}'. This action cannot be undone.",
+                "message": "Please review the service details above and confirm deletion.",
+                "delete_config": service_data  # Store the full service data for deletion
+            }
+        
+        else:
+            # Step 2: Execute the deletion workflow
+            return _execute_service_deletion_workflow(instance_name, service_type)
+        
+    except Exception as e:
+        error_msg = f"Delete service analysis failed: {str(e)}"
+        logger.error(error_msg)
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        return {"error": error_msg}
+
+@mcp.tool()
+def delete_service(user_query: str = "", service_type: str = "l2circuit") -> str:
+    """
+    WHEN TO USE: Use this tool when user wants to delete/remove/terminate an existing service.
+    
+    DESCRIPTION: Deletes a service using intelligent analysis and confirmation workflow:
+    1. Extract service name from natural language query using GPT-4
+    2. Find the service and show confirmation details with full service JSON
+    3. Return confirmation request for user approval
+    
+    Args:
+        user_query: Natural language deletion request (e.g., "delete l2circuit1-135006")
+        service_type: Type of service ("l3vpn", "l2circuit", "evpn"). Default: "l2circuit"
+    
+    Returns:
+        JSON string containing deletion confirmation details or execution results
+    """
+    try:
+        # Extract service name from natural language query
+        if user_query:
+            instance_name = _extract_service_name_with_gpt4(user_query)
+            if not instance_name:
+                return json.dumps({
+                    "error": "Could not extract service/instance name from query. Please specify the exact service name.",
+                    "user_query": user_query,
+                    "suggestion": "Try: 'delete service_name' or 'remove instance_id'"
+                })
+        else:
+            return json.dumps({
+                "error": "Please provide the service deletion request",
+                "suggestion": "Example: 'delete l2circuit1-135006'"
+            })
+        
+        # Call the intelligent delete service workflow (returns confirmation request)
+        result = _delete_service_intelligent(instance_name, service_type, confirm=False)
+        return json.dumps(result, indent=2)
+        
+    except Exception as e:
+        error_msg = f"Service deletion failed: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({"error": error_msg})
+
+@mcp.tool()
+def confirm_delete_service(instance_name: str, service_type: str = "l2circuit") -> str:
+    """
+    WHEN TO USE: Use this tool to execute the actual service deletion after user confirmation.
+    
+    DESCRIPTION: Executes the confirmed service deletion workflow:
+    1. GET service configuration and modify operation to "delete"
+    2. POST to create order
+    3. POST to execute deletion
+    4. Verify deletion status
+    
+    Args:
+        instance_name: Name of the service/instance to delete
+        service_type: Type of service ("l3vpn", "l2circuit", "evpn"). Default: "l2circuit"
+    
+    Returns:
+        JSON string containing the complete deletion workflow result
+    """
+    try:
+        # Execute deletion with confirmation
+        result = _delete_service_intelligent(instance_name, service_type, confirm=True)
+        return json.dumps(result, indent=2)
+        
+    except Exception as e:
+        error_msg = f"Service deletion execution failed: {str(e)}"
+        logger.error(error_msg)
+        return json.dumps({"error": error_msg})
+
+def _execute_service_deletion_workflow(instance_name: str, service_type: str) -> Dict[str, Any]:
+    """
+    Execute the actual service deletion workflow:
+    1. Get service configuration
+    2. Modify operation to "delete"
+    3. POST to create_order
+    4. POST to execute_order
+    """
+    try:
+        workflow_result = {
+            "success": True,
+            "instance_name": instance_name,
+            "service_type": service_type,
+            "steps": [],
+            "final_status": None
+        }
+        
+        logger.info(f"🗑️ Starting deletion workflow for service '{instance_name}'")
+        
+        # Step 1: Find customer and get service details
+        customers_result = _fetch_all_customers()
+        if "error" in customers_result:
+            workflow_result["success"] = False
+            workflow_result["error"] = f"Failed to fetch customers: {customers_result['error']}"
+            return workflow_result
+        
+        customers_data = customers_result.get("data", [])
+        if isinstance(customers_data, dict):
+            customers_data = customers_data.get("customers", [])
+        
+        customer_id = _find_service_by_customer(instance_name, customers_data)
+        if not customer_id:
+            workflow_result["success"] = False
+            workflow_result["error"] = f"Service '{instance_name}' not found"
+            return workflow_result
+        
+        # Step 2: Get service configuration
+        logger.info(f"📄 Step 1: Getting service configuration for '{instance_name}'")
+        
+        instance_endpoint = f"/service-orchestration/api/v1/orgs/{ORG_ID}/order/customers/{customer_id}/instances/{instance_name}"
+        instance_result = make_api_request_sync(instance_endpoint)
+        
+        if "error" in instance_result:
+            workflow_result["success"] = False
+            workflow_result["steps"].append({
+                "step": 1,
+                "action": "get_service_config",
+                "status": "failed",
+                "error": instance_result["error"]
+            })
+            return workflow_result
+        
+        # FIX: Handle case where API returns a list instead of dict
+        if isinstance(instance_result, list):
+            if len(instance_result) > 0:
+                # Take the first element if it's a list
+                service_config = instance_result[0]
+                logger.info(f"API returned list, using first element for service '{instance_name}'")
+            else:
+                workflow_result["success"] = False
+                workflow_result["steps"].append({
+                    "step": 1,
+                    "action": "get_service_config",
+                    "status": "failed",
+                    "error": "Service configuration data is empty"
+                })
+                return workflow_result
+        elif isinstance(instance_result, dict):
+            # It's already a dictionary
+            service_config = instance_result
+        else:
+            workflow_result["success"] = False
+            workflow_result["steps"].append({
+                "step": 1,
+                "action": "get_service_config",
+                "status": "failed",
+                "error": f"Unexpected response format: {type(instance_result)}"
+            })
+            return workflow_result
+        
+        workflow_result["steps"].append({
+            "step": 1,
+            "action": "get_service_config",
+            "status": "success",
+            "original_operation": service_config.get("operation", "unknown")
+        })
+        
+        # Step 3: Modify operation to "delete" and create order
+        logger.info(f"🔄 Step 2: Modifying operation to 'delete' and creating order")
+        
+        delete_config = service_config.copy()
+        delete_config["operation"] = "delete"
+        
+        create_order_endpoint = f"/service-orchestration/api/v1/orgs/{ORG_ID}/order"
+        create_result = make_api_request_sync(create_order_endpoint, method="POST", json_data=delete_config)
+        
+        if "error" in create_result:
+            workflow_result["success"] = False
+            workflow_result["steps"].append({
+                "step": 2,
+                "action": "create_delete_order",
+                "status": "failed",
+                "error": create_result["error"]
+            })
+            return workflow_result
+        
+        workflow_result["steps"].append({
+            "step": 2,
+            "action": "create_delete_order",
+            "status": "success",
+            "modified_operation": "delete",
+            "response": create_result
+        })
+        
+        # Step 4: Execute the delete order
+        logger.info(f"⚡ Step 3: Executing delete order for '{instance_name}'")
+        
+        time.sleep(2)  # Brief pause between operations
+        
+        execute_endpoint = f"/service-orchestration/api/v1/orgs/{ORG_ID}/order/customers/{customer_id}/instances/{instance_name}/exec"
+        execute_result = make_api_request_sync(execute_endpoint, method="POST")
+        
+        if "error" in execute_result:
+            workflow_result["success"] = False
+            workflow_result["steps"].append({
+                "step": 3,
+                "action": "execute_delete_order",
+                "status": "failed",
+                "error": execute_result["error"]
+            })
+            return workflow_result
+        
+        workflow_result["steps"].append({
+            "step": 3,
+            "action": "execute_delete_order",
+            "status": "success",
+            "response": execute_result
+        })
+        
+        # Step 5: Verify deletion
+        logger.info(f"🔍 Step 4: Verifying deletion status")
+        
+        time.sleep(5)  # Wait for deletion to process
+        
+        try:
+            verify_result = make_api_request_sync(instance_endpoint, method="GET")
+            
+            if "error" in verify_result:
+                # Service not found = deletion successful
+                workflow_result["final_status"] = "deleted"
+                workflow_result["steps"].append({
+                    "step": 4,
+                    "action": "verify_deletion",
+                    "status": "success",
+                    "instance_status": "deleted",
+                    "note": "Service not found - deletion successful"
+                })
+                logger.info(f"🎉 Service '{instance_name}' successfully deleted")
+            else:
+                # Handle the case where verify_result might also be a list
+                if isinstance(verify_result, list):
+                    if len(verify_result) > 0:
+                        service_status_data = verify_result[0]
+                    else:
+                        # Empty list means service is likely deleted
+                        workflow_result["final_status"] = "deleted"
+                        workflow_result["steps"].append({
+                            "step": 4,
+                            "action": "verify_deletion",
+                            "status": "success",
+                            "instance_status": "deleted",
+                            "note": "Service not found - deletion successful"
+                        })
+                        return workflow_result
+                else:
+                    service_status_data = verify_result
+                
+                instance_status = service_status_data.get("instance_status", "unknown")
+                workflow_result["final_status"] = instance_status
+                workflow_result["steps"].append({
+                    "step": 4,
+                    "action": "verify_deletion",
+                    "status": "warning",
+                    "instance_status": instance_status,
+                    "note": "Service still exists, deletion may be in progress"
+                })
+                logger.info(f"⏳ Service '{instance_name}' status: {instance_status}")
+                
+        except Exception as e:
+            logger.warning(f"⚠️ Could not verify deletion status: {e}")
+            workflow_result["steps"].append({
+                "step": 4,
+                "action": "verify_deletion",
+                "status": "warning",
+                "error": f"Status verification failed: {str(e)}"
+            })
+        
+        logger.info(f"✅ Deletion workflow completed for '{instance_name}'")
+        return workflow_result
+        
+    except Exception as e:
+        logger.error(f"❌ Deletion workflow failed: {e}")
+        return {
+            "success": False,
+            "error": f"Deletion workflow failed: {str(e)}",
+            "steps": []
+        }
+
 def _create_service_intelligent(user_query: str, service_type: str = "l2circuit") -> str:
     """
     Internal function for intelligent service creation using EnhancedServiceConfigGenerator
@@ -558,13 +1122,26 @@ def _create_service_intelligent(user_query: str, service_type: str = "l2circuit"
         logger.info(f"📝 User Query: {user_query}")
         logger.info(f"🔧 Service Type: {service_type}")
         
-        # Use the enhanced service generator's complete workflow
-        results = enhanced_service_generator.process_service_request(user_query)
+        # Use the enhanced service generator's new form-based workflow
+        # Always show forms for L2 circuits to get user approval of default values
+        results = enhanced_service_generator.process_service_request_with_forms(user_query)
         
-        if not results["success"]:
-            # Return validation errors or other issues
+        # Check if forms are needed
+        if results.get("needs_form"):
+            logger.info(f"📋 Forms required for {len(results.get('form_templates', []))} service(s)")
             return json.dumps({
-                "error": "Service request processing failed",
+                "action_required": "form_input",
+                "service_type": results.get("service_type", service_type),
+                "message": results.get("message", "Please review and confirm the configuration with default values"),
+                "form_templates": results.get("form_templates", []),
+                "parsed_request": results.get("parsed_request", {}),
+                "original_query": user_query
+            })
+        
+        # Check for validation errors
+        if not results["success"] and results.get("validation_errors"):
+            return json.dumps({
+                "error": "Service request validation failed",
                 "validation_errors": results.get("validation_errors", []),
                 "parsed_request": results.get("parsed_request", {}),
                 "original_query": user_query,
@@ -575,7 +1152,15 @@ def _create_service_intelligent(user_query: str, service_type: str = "l2circuit"
                 ]
             })
         
-        # Extract the generated configurations
+        # If there's an error, return it
+        if not results["success"]:
+            return json.dumps({
+                "error": results.get("error", "Unknown error occurred"),
+                "parsed_request": results.get("parsed_request", {}),
+                "original_query": user_query
+            })
+        
+        # Normal successful configuration generation
         configs = results.get("json_configs", [])
         junos_configs = results.get("junos_configs", [])
         parsed_request = results.get("parsed_request", {})
@@ -654,7 +1239,6 @@ def _create_service_intelligent(user_query: str, service_type: str = "l2circuit"
     except Exception as e:
         error_msg = f"Service creation request failed: {str(e)}"
         logger.error(error_msg)
-        import traceback
         logger.error(f"Full traceback: {traceback.format_exc()}")
         return json.dumps({"error": error_msg})
 
@@ -664,16 +1248,142 @@ def create_service_intelligent(user_query: str, service_type: str = "l2circuit")
     WHEN TO USE: Use this tool when user wants to create services using natural language descriptions.
     
     DESCRIPTION: Uses the Enhanced Service Config Generator to parse natural language service creation requests,
-    generate appropriate JSON configurations with JUNOS CLI, save them to files, and present them for user confirmation.
+    analyze mandatory requirements, and either generate configurations directly or request additional information
+    through interactive forms.
     
     Args:
         user_query: Natural language description of the service to create
         service_type: Type of service to create ("l3vpn", "l2circuit", "evpn"). Default: "l2circuit"
     
     Returns:
-        JSON string containing generated service configurations for user confirmation
+        JSON string containing either generated service configurations or form templates for user input
     """
     return _create_service_intelligent(user_query, service_type)
+
+@mcp.tool()
+def submit_service_forms(form_data: str) -> str:
+    """
+    WHEN TO USE: Use this tool to process submitted service configuration forms.
+    
+    DESCRIPTION: Processes filled service configuration forms and generates the final JSON configurations
+    and JUNOS CLI configurations for user confirmation.
+    
+    Args:
+        form_data: JSON string containing the filled form data for all services
+    
+    Returns:
+        JSON string containing generated configurations for user confirmation
+    """
+    try:
+        if not enhanced_service_generator:
+            return json.dumps({
+                "error": "Enhanced service generator not available",
+                "action_required": "manual_upload"
+            })
+        
+        # Parse form data
+        try:
+            forms = json.loads(form_data)
+            if not isinstance(forms, list):
+                return json.dumps({
+                    "error": "Invalid form data format. Expected list of forms."
+                })
+        except json.JSONDecodeError:
+            return json.dumps({
+                "error": "Invalid JSON format for form data"
+            })
+        
+        logger.info(f"🚀 Processing {len(forms)} submitted form(s)")
+        
+        # Generate configurations from form data
+        results = enhanced_service_generator.generate_config_from_form_data(forms)
+        
+        if not results["success"]:
+            return json.dumps({
+                "error": results.get("error", "Failed to generate configurations"),
+                "form_data": forms
+            })
+        
+        # Extract results
+        configs = results.get("json_configs", [])
+        junos_configs = results.get("junos_configs", [])
+        
+        if not configs:
+            return json.dumps({
+                "error": "No configurations generated from form data",
+                "form_data": forms
+            })
+        
+        logger.info(f"✅ Generated {len(configs)} configuration(s) from forms")
+        
+        # Get service details from first form
+        first_form = forms[0] if forms else {}
+        field_values = {field["field_name"]: field["value"] for field in first_form.get("fields", [])}
+        
+        # Prepare summary for user confirmation
+        summary = {
+            "action_required": "user_confirmation",
+            "service_type": field_values.get("service_type", "l2circuit"),
+            "service_name": SERVICE_TYPES.get(field_values.get("service_type", "l2circuit"), {}).get("name", "L2 Circuit"),
+            "total_services": len(configs),
+            "customer_name": field_values.get("customer_name", "Unknown"),
+            "source_node": field_values.get("source_node", "Unknown"),
+            "dest_node": field_values.get("dest_node", "Unknown"),
+            "generated_configs": []
+        }
+        
+        # Add summary and CLI for each config
+        for i, config in enumerate(configs):
+            config_summary = {
+                "index": i + 1,
+                "instance_id": config["instance_id"],
+                "customer_id": config["customer_id"],
+                "vlan_id": None,
+                "cli_configs": {}
+            }
+            
+            # Extract VLAN ID for L2 circuits
+            if field_values.get("service_type") == "l2circuit":
+                try:
+                    vpn_nodes = config["l2vpn_ntw"]["vpn_services"]["vpn_service"][0]["vpn_nodes"]["vpn_node"]
+                    if vpn_nodes:
+                        vlan_id = vpn_nodes[0]["vpn_network_accesses"]["vpn_network_access"][0]["connection"]["encapsulation"]["dot1q"]["c_vlan_id"]
+                        config_summary["vlan_id"] = vlan_id
+                except (KeyError, IndexError):
+                    pass
+            
+            # Add JUNOS CLI configurations
+            junos_config_for_service = next(
+                (jc for jc in junos_configs if jc.get("service_name") == config["instance_id"]), 
+                None
+            )
+            
+            if junos_config_for_service and junos_config_for_service.get("junos_config"):
+                junos_cli = junos_config_for_service["junos_config"]
+                config_summary["cli_configs"] = {
+                    field_values.get("source_node", "Source Device"): junos_cli,
+                    field_values.get("dest_node", "Destination Device"): junos_cli
+                }
+                logger.info(f"✅ Added JUNOS CLI for service {config['instance_id']}")
+            else:
+                config_summary["cli_configs"] = {"info": "JUNOS CLI generation completed but not available in this response"}
+            
+            summary["generated_configs"].append(config_summary)
+        
+        # Store configurations for later use
+        summary["configurations"] = configs
+        summary["form_data"] = forms
+        
+        logger.info(f"🎉 Form processing completed successfully")
+        logger.info(f"📊 Ready for user confirmation: {len(configs)} services")
+        
+        return json.dumps(summary, indent=2)
+        
+    except Exception as e:
+        error_msg = f"Form submission processing failed: {str(e)}"
+        logger.error(error_msg)
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        return json.dumps({"error": error_msg})
 
 @mcp.tool()
 def execute_service_creation(configurations: str, confirm: bool = False) -> str:
@@ -829,7 +1539,7 @@ def _execute_service_deployment(config: Dict[str, Any]) -> Dict[str, Any]:
         
         logger.info(f"✅ Step 2 completed: Service deployment initiated")
         
-        # Step 3: Verify deployment status after some delay -> Need changes here [MDAVALA] check later currently this is optional
+        # Step 3: Verify deployment status after some delay
         logger.info(f"🔍 Step 3: Verifying deployment status for '{instance_id}'")
         time.sleep(5)  # Wait for deployment to process
         
@@ -886,6 +1596,8 @@ def execute_tool_by_name(tool_name: str, **kwargs) -> Any:
             return _fetch_all_instances(service_type=service_type)
         elif tool_name == "fetch_all_orders":
             return _fetch_all_orders()
+        elif tool_name == "fetch_all_customers":
+            return _fetch_all_customers()
         elif tool_name == "get_api_endpoints":
             return _get_api_endpoints()
         elif tool_name == "create_service_intelligent":
@@ -897,12 +1609,37 @@ def execute_tool_by_name(tool_name: str, **kwargs) -> Any:
                 return json.loads(result_str)
             except json.JSONDecodeError:
                 return {"error": f"Invalid JSON response from create_service_intelligent: {result_str}"}
+        elif tool_name == "delete_service":
+            user_query = kwargs.get("user_query", "")
+            service_type = kwargs.get("service_type", "l2circuit")
+            
+            # Extract service name from natural language query (same logic as delete_service tool)
+            if user_query:
+                instance_name = _extract_service_name_with_gpt4(user_query)
+                if not instance_name:
+                    return {
+                        "error": "Could not extract service/instance name from query. Please specify the exact service name.",
+                        "user_query": user_query,
+                        "suggestion": "Try: 'delete service_name' or 'remove instance_id'"
+                    }
+            else:
+                return {
+                    "error": "Please provide the service deletion request",
+                    "suggestion": "Example: 'delete l2circuit1-135006'"
+                }
+            
+            # Call the internal delete service workflow (returns confirmation request)
+            result = _delete_service_intelligent(instance_name, service_type, confirm=False)
+            return result
+        elif tool_name == "get_instance_details":
+            # This would need enhancement to extract instance name from query
+            # For now, return an error suggesting specific instance name
+            return {"error": "Please specify the exact instance name for detailed information"}
         else:
             return {"error": f"Unknown tool: {tool_name}"}
             
     except Exception as e:
         logger.error(f"Tool execution error for {tool_name}: {str(e)}")
-        import traceback
         logger.error(f"Full traceback: {traceback.format_exc()}")
         return {"error": f"Tool execution error: {str(e)}"}
 
@@ -1237,30 +1974,21 @@ def debug_service_generator() -> str:
                 "devices_sample": [d.get('hostname') for d in enhanced_service_generator.devices_data.get('devices', [])[:3]]
             })
             
-            # Test the complete workflow
+            # Test the form-based workflow
             test_query = "create l2 circuit for SINET from PNH-ACX7024-A1 to TH-ACX7100-A6 with service name test-debug"
             try:
-                test_results = enhanced_service_generator.process_service_request(test_query)
+                test_results = enhanced_service_generator.process_service_request_with_forms(test_query)
                 
-                debug_info["test_complete_workflow"] = {
+                debug_info["test_form_workflow"] = {
                     "success": test_results.get("success", False),
-                    "json_configs_count": len(test_results.get("json_configs", [])),
-                    "junos_configs_count": len(test_results.get("junos_configs", [])),
+                    "needs_form": test_results.get("needs_form", False),
+                    "form_templates_count": len(test_results.get("form_templates", [])),
                     "validation_errors": test_results.get("validation_errors", []),
                     "parsed_request": test_results.get("parsed_request", {})
                 }
                 
-                if test_results.get("success") and test_results.get("json_configs"):
-                    config = test_results["json_configs"][0]
-                    debug_info["test_config_sample"] = {
-                        "instance_id": config.get("instance_id"),
-                        "customer_id": config.get("customer_id"),
-                        "operation": config.get("operation"),
-                        "workflow_id": config.get("workflow_id")
-                    }
-                
             except Exception as e:
-                debug_info["test_complete_workflow"] = {
+                debug_info["test_form_workflow"] = {
                     "success": False,
                     "error": str(e)
                 }
@@ -1275,3 +2003,4 @@ def debug_service_generator() -> str:
 
 if __name__ == "__main__":
     mcp.run()
+    

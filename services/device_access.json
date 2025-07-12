@@ -1,0 +1,11 @@
+{
+    "PNH-ACX7024-A1": {
+        "ip": "66.129.234.204",
+        "port": 48035,
+        "username": "jcluser",
+        "auth": {
+            "type": "password",
+            "password": "Juniper!1"
+        }
+    }
+}

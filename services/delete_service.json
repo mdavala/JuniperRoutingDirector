@@ -1,0 +1,607 @@
+{
+  "customer_id": "350ed1f4-277c-11f0-b231-3665c4645853",
+  "design_id": "eline-l2circuit-nsm",
+  "design_version": "0.5.11",
+  "fh_config": {
+    "edited-by": "jcluser@juniper.net",
+    "status": "applied device config to [00000000-0000-0000-1000-3c08cd823100(PNH-ACX7024-A1), 00000000-0000-0000-1000-20ed4753e018(TH-ACX7100-A6)]"
+  },
+  "instance_id": "l2circuit1-182128",
+  "instance_status": "active",
+  "instance_uuid": "07a6bfe5-3b69-4ad9-8862-65498c0476ee",
+  "l2vpn_ntw": {
+    "vpn_services": {
+      "vpn_service": [
+        {
+          "customer_name": "SINET",
+          "vpn_id": "l2circuit1-182128",
+          "vpn_name": "l2circuit1-182128",
+          "vpn_nodes": {
+            "vpn_node": [
+              {
+                "description": "l2circuit1-182128-pnh",
+                "ne_id": "00000000-0000-0000-1000-3c08cd823100",
+                "signaling_options": [
+                  {
+                    "ac_pw_list": [
+                      {
+                        "peer_addr": "10.40.40.12",
+                        "vc_id": 0
+                      }
+                    ],
+                    "type": "ldp-signaling"
+                  }
+                ],
+                "underlay_transport": {
+                  "instance_type": "lsp",
+                  "transport_instance_id": "DELAY-to-TH-ACX7100-A6"
+                },
+                "vpn_network_accesses": {
+                  "vpn_network_access": [
+                    {
+                      "connection": {
+                        "encapsulation": {
+                          "dot1q": {
+                            "c_vlan_id": 1010
+                          },
+                          "l2_access_type": "dot1q"
+                        }
+                      },
+                      "description": "to-l2circuit1-182128-ce1",
+                      "id": "111",
+                      "port_id": "et-0/0/6",
+                      "service": {
+                        "svc_input_bandwidth": {
+                          "input_bandwidth": []
+                        },
+                        "svc_output_bandwidth": {
+                          "output_bandwidth": []
+                        }
+                      }
+                    }
+                  ]
+                },
+                "vpn_node_id": "PNH-ACX7024-A1"
+              },
+              {
+                "description": "l2circuit1-182128-th",
+                "ne_id": "00000000-0000-0000-1000-20ed4753e018",
+                "signaling_options": [
+                  {
+                    "ac_pw_list": [
+                      {
+                        "peer_addr": "10.40.40.11",
+                        "vc_id": 0
+                      }
+                    ],
+                    "type": "ldp-signaling"
+                  }
+                ],
+                "underlay_transport": {
+                  "instance_type": "lsp",
+                  "transport_instance_id": "DELAY-to-PNH-ACX7024-A1"
+                },
+                "vpn_network_accesses": {
+                  "vpn_network_access": [
+                    {
+                      "connection": {
+                        "encapsulation": {
+                          "dot1q": {
+                            "c_vlan_id": 1010
+                          },
+                          "l2_access_type": "dot1q"
+                        }
+                      },
+                      "description": "to l2circuit1-182128 ce1",
+                      "id": "111",
+                      "port_id": "et-0/0/8",
+                      "service": {
+                        "svc_input_bandwidth": {
+                          "input_bandwidth": []
+                        },
+                        "svc_output_bandwidth": {
+                          "output_bandwidth": []
+                        }
+                      }
+                    }
+                  ]
+                },
+                "vpn_node_id": "TH-ACX7100-A6"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "operation": "delete",
+  "order_id": "e96a7c05-5e55-11f0-9a00-be3be248e9b1",
+  "org_id": "0eaf8613-632d-41d2-8de4-c2d242325d7e",
+  "place": [
+    {
+      "instPath": [
+        "vpn_services",
+        "vpn_service",
+        0,
+        "vpn_nodes",
+        "vpn_node",
+        0,
+        "vpn_network_accesses",
+        "vpn_network_access",
+        0
+      ],
+      "number": 1010,
+      "options": [
+        {
+          "numbers": 96,
+          "offset": 1000,
+          "oper_status": "up",
+          "path": [
+            {
+              "name": "interface",
+              "type": "resource"
+            },
+            {
+              "name": "ethernet",
+              "type": "ifType"
+            },
+            {
+              "name": "10000",
+              "type": "ifSpeed"
+            },
+            {
+              "name": "ce1",
+              "type": "ce"
+            },
+            {
+              "name": "592763a8-f9b1-4b6d-9b55-2230b10670a2",
+              "type": "pop"
+            },
+            {
+              "name": "00000000-0000-0000-1000-3c08cd823100",
+              "type": "pe"
+            },
+            {
+              "name": "et-0/0/6",
+              "type": "port"
+            }
+          ],
+          "properties": {
+            "id": "00000000-0000-0000-1000-3c08cd823100",
+            "site": "592763a8-f9b1-4b6d-9b55-2230b10670a2",
+            "vlan_size": 100,
+            "vlan_start": 1000
+          }
+        }
+      ],
+      "optionsqs": [
+        [
+          {
+            "name": "interface",
+            "type": "resource"
+          },
+          {
+            "name": "00000000-0000-0000-1000-3c08cd823100",
+            "type": "pe"
+          }
+        ]
+      ],
+      "path": [
+        {
+          "name": "l2circuit1-182128",
+          "type": "vpn"
+        },
+        {
+          "name": "PNH-ACX7024-A1",
+          "type": "vpn_node"
+        },
+        {
+          "name": "111",
+          "type": "access"
+        },
+        {
+          "name": "ifReq",
+          "type": "interface"
+        }
+      ],
+      "pool": [
+        {
+          "name": "interface",
+          "type": "resource"
+        },
+        {
+          "name": "ethernet",
+          "type": "ifType"
+        },
+        {
+          "name": "10000",
+          "type": "ifSpeed"
+        },
+        {
+          "name": "ce1",
+          "type": "ce"
+        },
+        {
+          "name": "592763a8-f9b1-4b6d-9b55-2230b10670a2",
+          "type": "pop"
+        },
+        {
+          "name": "00000000-0000-0000-1000-3c08cd823100",
+          "type": "pe"
+        },
+        {
+          "name": "et-0/0/6",
+          "type": "port"
+        }
+      ],
+      "properties": {
+        "id": "00000000-0000-0000-1000-3c08cd823100",
+        "site": "592763a8-f9b1-4b6d-9b55-2230b10670a2",
+        "vlan_size": 100,
+        "vlan_start": 1000
+      },
+      "type": "numbered"
+    },
+    {
+      "instPath": [
+        "vpn_services",
+        "vpn_service",
+        0,
+        "vpn_nodes",
+        "vpn_node",
+        1,
+        "vpn_network_accesses",
+        "vpn_network_access",
+        0
+      ],
+      "number": 1010,
+      "options": [
+        {
+          "numbers": 96,
+          "offset": 1000,
+          "oper_status": "up",
+          "path": [
+            {
+              "name": "interface",
+              "type": "resource"
+            },
+            {
+              "name": "ethernet",
+              "type": "ifType"
+            },
+            {
+              "name": "40000",
+              "type": "ifSpeed"
+            },
+            {
+              "name": "ce11",
+              "type": "ce"
+            },
+            {
+              "name": "60e4182e-7f22-4f64-9fcf-20140b118b7b",
+              "type": "pop"
+            },
+            {
+              "name": "00000000-0000-0000-1000-20ed4753e018",
+              "type": "pe"
+            },
+            {
+              "name": "et-0/0/8",
+              "type": "port"
+            }
+          ],
+          "properties": {
+            "id": "00000000-0000-0000-1000-20ed4753e018",
+            "site": "60e4182e-7f22-4f64-9fcf-20140b118b7b",
+            "vlan_size": 100,
+            "vlan_start": 1000
+          }
+        },
+        {
+          "numbers": 100,
+          "offset": 1000,
+          "oper_status": "up",
+          "path": [
+            {
+              "name": "interface",
+              "type": "resource"
+            },
+            {
+              "name": "ethernet",
+              "type": "ifType"
+            },
+            {
+              "name": "10000",
+              "type": "ifSpeed"
+            },
+            {
+              "name": "ce1",
+              "type": "ce"
+            },
+            {
+              "name": "60e4182e-7f22-4f64-9fcf-20140b118b7b",
+              "type": "pop"
+            },
+            {
+              "name": "00000000-0000-0000-1000-20ed4753e018",
+              "type": "pe"
+            },
+            {
+              "name": "et-0/0/0:2",
+              "type": "port"
+            }
+          ],
+          "properties": {
+            "id": "00000000-0000-0000-1000-20ed4753e018",
+            "site": "60e4182e-7f22-4f64-9fcf-20140b118b7b",
+            "vlan_size": 100,
+            "vlan_start": 1000
+          }
+        }
+      ],
+      "optionsqs": [
+        [
+          {
+            "name": "interface",
+            "type": "resource"
+          },
+          {
+            "name": "00000000-0000-0000-1000-20ed4753e018",
+            "type": "pe"
+          }
+        ]
+      ],
+      "path": [
+        {
+          "name": "l2circuit1-182128",
+          "type": "vpn"
+        },
+        {
+          "name": "TH-ACX7100-A6",
+          "type": "vpn_node"
+        },
+        {
+          "name": "111",
+          "type": "access"
+        },
+        {
+          "name": "ifReq",
+          "type": "interface"
+        }
+      ],
+      "pool": [
+        {
+          "name": "interface",
+          "type": "resource"
+        },
+        {
+          "name": "ethernet",
+          "type": "ifType"
+        },
+        {
+          "name": "40000",
+          "type": "ifSpeed"
+        },
+        {
+          "name": "ce11",
+          "type": "ce"
+        },
+        {
+          "name": "60e4182e-7f22-4f64-9fcf-20140b118b7b",
+          "type": "pop"
+        },
+        {
+          "name": "00000000-0000-0000-1000-20ed4753e018",
+          "type": "pe"
+        },
+        {
+          "name": "et-0/0/8",
+          "type": "port"
+        }
+      ],
+      "properties": {
+        "id": "00000000-0000-0000-1000-20ed4753e018",
+        "site": "60e4182e-7f22-4f64-9fcf-20140b118b7b",
+        "vlan_size": 100,
+        "vlan_start": 1000
+      },
+      "type": "numbered"
+    },
+    {
+      "number": 1,
+      "options": [
+        {
+          "numbers": 999,
+          "offset": 0,
+          "oper_status": "up",
+          "path": [
+            {
+              "name": "virtual_circuit_id",
+              "type": "resource"
+            },
+            {
+              "name": "100",
+              "type": "virtual_circuit_id"
+            }
+          ]
+        }
+      ],
+      "optionsq": [
+        {
+          "name": "virtual_circuit_id",
+          "type": "resource"
+        }
+      ],
+      "path": [
+        {
+          "name": "l2circuit1-182128",
+          "type": "vpn"
+        },
+        {
+          "name": "vc_id_req",
+          "type": "vc_id"
+        }
+      ],
+      "pool": [
+        {
+          "name": "virtual_circuit_id",
+          "type": "resource"
+        },
+        {
+          "name": "100",
+          "type": "virtual_circuit_id"
+        }
+      ],
+      "type": "numbered"
+    },
+    {
+      "number": 1,
+      "options": [
+        {
+          "numbers": 99,
+          "offset": 0,
+          "oper_status": "up",
+          "path": [
+            {
+              "name": "community",
+              "type": "resource"
+            },
+            {
+              "name": "999",
+              "type": "community"
+            }
+          ]
+        }
+      ],
+      "optionsq": [
+        {
+          "name": "community",
+          "type": "resource"
+        }
+      ],
+      "path": [
+        {
+          "name": "l2circuit1-182128",
+          "type": "vpn"
+        },
+        {
+          "name": "community_req",
+          "type": "community"
+        }
+      ],
+      "pool": [
+        {
+          "name": "community",
+          "type": "resource"
+        },
+        {
+          "name": "999",
+          "type": "community"
+        }
+      ],
+      "type": "numbered"
+    }
+  ],
+  "placement": {
+    "l2vpn_nsm": {
+      "vpn_services": {
+        "vpn_service": [
+          {
+            "community": {
+              "options": [
+                "999"
+              ],
+              "selected": {
+                "pool": "999",
+                "value": 1
+              }
+            },
+            "virtual_circuit_id": {
+              "options": [
+                100
+              ],
+              "selected": {
+                "pool": 100,
+                "value": 1
+              }
+            },
+            "vpn_id": "l2circuit1-182128",
+            "vpn_nodes": {
+              "vpn_node": [
+                {
+                  "vpn_network_accesses": {
+                    "vpn_network_access": [
+                      {
+                        "id": "111",
+                        "interface": {
+                          "options": [
+                            {
+                              "pe": "00000000-0000-0000-1000-3c08cd823100",
+                              "pop": "592763a8-f9b1-4b6d-9b55-2230b10670a2",
+                              "port": "et-0/0/6",
+                              "vlans": {
+                                "size": 100,
+                                "start": 1000
+                              }
+                            }
+                          ],
+                          "pool": {
+                            "interface": "et-0/0/6.1010",
+                            "pe": "00000000-0000-0000-1000-3c08cd823100",
+                            "pop": "592763a8-f9b1-4b6d-9b55-2230b10670a2"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "vpn_node_id": "PNH-ACX7024-A1"
+                },
+                {
+                  "vpn_network_accesses": {
+                    "vpn_network_access": [
+                      {
+                        "id": "111",
+                        "interface": {
+                          "options": [
+                            {
+                              "pe": "00000000-0000-0000-1000-20ed4753e018",
+                              "pop": "60e4182e-7f22-4f64-9fcf-20140b118b7b",
+                              "port": "et-0/0/8",
+                              "vlans": {
+                                "size": 100,
+                                "start": 1000
+                              }
+                            },
+                            {
+                              "pe": "00000000-0000-0000-1000-20ed4753e018",
+                              "pop": "60e4182e-7f22-4f64-9fcf-20140b118b7b",
+                              "port": "et-0/0/0:2",
+                              "vlans": {
+                                "size": 100,
+                                "start": 1000
+                              }
+                            }
+                          ],
+                          "pool": {
+                            "interface": "et-0/0/8.1010",
+                            "pe": "00000000-0000-0000-1000-20ed4753e018",
+                            "pop": "60e4182e-7f22-4f64-9fcf-20140b118b7b"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "vpn_node_id": "TH-ACX7100-A6"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "upload_time": "2025-07-11T12:53:50Z",
+  "version": "1.0.0",
+  "workflow_id": "create-eline-l2circuit-nsm-0_5_11",
+  "workflow_run_id": "manual__2025-07-11T12:52:36.322241+00:00"
+}

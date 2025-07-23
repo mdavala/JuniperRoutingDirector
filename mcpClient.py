@@ -1099,9 +1099,11 @@ def display_service_forms(form_templates, metadata=None):
     total_services = len(form_templates)
     
     # Enhanced message for default values approval
+    service_display_name = "L2 Circuit" if service_type == "l2circuit" else "EVPN ELAN" if service_type == "evpn" else service_type.upper()
+    
     st.markdown(f"""
     <div class="confirmation-panel">
-        <h4>📝 Review and Confirm Configuration for {total_services} {service_type.upper()} service(s)</h4>
+        <h4>📝 Review and Confirm Configuration for {total_services} {service_display_name} service(s)</h4>
         <p><strong>🔧 Default Values Pre-populated:</strong> The system has filled in default values. 
         Please review and modify any values as needed before proceeding.</p>
         <p><strong>📁 Collapsible Forms:</strong> Each service has its own expandable section below.</p>
@@ -1136,7 +1138,7 @@ def display_service_forms(form_templates, metadata=None):
                 st.markdown(f"""
                 <div class="form-container">
                     <div class="form-header">
-                        ⚙️ Configuration for Service {service_index}
+                        ⚙️ Configuration for {service_display_name} Service {service_index}
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1148,10 +1150,22 @@ def display_service_forms(form_templates, metadata=None):
                     "fields": []
                 }
                 
-                # Categorize fields
-                basic_fields = ["service_type", "customer_name", "service_name", "source_node", "dest_node"]
-                network_fields = ["source_peer_addr", "dest_peer_addr", "vc_id", "vlan_id"]
-                port_fields = ["source_port_id", "dest_port_id", "source_port_access_id", "dest_port_access_id"]
+                # Categorize fields based on service type
+                if service_type == "l2circuit":
+                    basic_fields = ["service_type", "customer_name", "service_name", "source_node", "dest_node"]
+                    network_fields = ["source_peer_addr", "dest_peer_addr", "vc_id", "vlan_id"]
+                    port_fields = ["source_port_id", "dest_port_id", "source_port_access_id", "dest_port_access_id"]
+                elif service_type == "evpn":
+                    basic_fields = ["service_type", "customer_name", "service_name", "source_node", "dest_node", "evpn_type"]
+                    network_fields = ["vpn_id", "parent_service_id", "route_target", "source_rd", "dest_rd", "cvlan_id"]
+                    port_fields = ["source_port_id", "dest_port_id", "source_network_access_id", "dest_network_access_id", "source_site_id", "dest_site_id"]
+                    performance_fields = ["port_speed", "mac_limit"]
+                else:
+                    # Fallback for unknown service types
+                    basic_fields = ["service_type", "customer_name", "service_name", "source_node", "dest_node"]
+                    network_fields = []
+                    port_fields = []
+                    performance_fields = []
                 
                 # Basic Service Information Section
                 st.markdown("#### 📋 Basic Service Information")
@@ -1218,39 +1232,183 @@ def display_service_forms(form_templates, metadata=None):
                         field_counter += 1
                 
                 # Network Configuration Section
-                st.markdown("#### 🌐 Network Configuration (Default Values)")
-                st.info("💡 These are system defaults that can be customized:")
-                
-                network_col1, network_col2 = st.columns(2)
-                
-                for field in form_template.get("fields", []):
-                    if field["field_name"] in network_fields:
-                        field_name = field["field_name"]
-                        display_name = field["display_name"]
-                        field_type = field["type"]
-                        field_value = field["value"]
-                        field_required = field.get("required", False)
-                        field_description = field.get("description", "")
-                        
-                        # Use unique widget key including service index
-                        widget_key = f"{unique_form_key}_{field_name}"
-                        
-                        current_col = network_col1 if field_counter % 2 == 0 else network_col2
-                        
-                        with current_col:
-                            st.markdown(f"**🔧 {display_name}{'*' if field_required else ''}**")
-                            if field_description:
-                                st.caption(f"⚙️ {field_description}")
+                if network_fields:
+                    if service_type == "l2circuit":
+                        st.markdown("#### 🌐 Network Configuration (Default Values)")
+                        st.info("💡 These are system defaults that can be customized:")
+                    elif service_type == "evpn":
+                        st.markdown("#### 🌐 VPN & Routing Configuration (Default Values)")
+                        st.info("💡 BGP EVPN routing configuration - modify as needed:")
+                    
+                    network_col1, network_col2 = st.columns(2)
+                    
+                    # Track EVPN type for conditional VLAN display
+                    current_evpn_type = "untagged"
+                    
+                    for field in form_template.get("fields", []):
+                        if field["field_name"] in network_fields:
+                            field_name = field["field_name"]
+                            display_name = field["display_name"]
+                            field_type = field["type"]
+                            field_value = field["value"]
+                            field_required = field.get("required", False)
+                            field_description = field.get("description", "")
                             
-                            if field_type == "number":
-                                selected_value = st.number_input(
-                                    f"Enter {display_name}",
-                                    value=int(field_value) if str(field_value).isdigit() else 0,
-                                    key=widget_key,
-                                    label_visibility="collapsed",
-                                    help=f"Default: {field_value}"
-                                )
-                            else:  # text
+                            # Use unique widget key including service index
+                            widget_key = f"{unique_form_key}_{field_name}"
+                            
+                            # Special handling for EVPN type selection
+                            if field_name == "evpn_type":
+                                current_col = network_col1 if field_counter % 2 == 0 else network_col2
+                                with current_col:
+                                    st.markdown(f"**🔧 {display_name}{'*' if field_required else ''}**")
+                                    if field_description:
+                                        st.caption(f"⚙️ {field_description}")
+                                    
+                                    options = field.get("options", ["untagged", "tagged"])
+                                    if field_value and field_value in options:
+                                        default_index = options.index(field_value)
+                                    else:
+                                        default_index = 0
+                                    
+                                    selected_value = st.selectbox(
+                                        f"Select {display_name}",
+                                        options=options,
+                                        index=default_index,
+                                        key=widget_key,
+                                        label_visibility="collapsed",
+                                        help="Choose 'tagged' for VLAN encapsulation or 'untagged' for plain Ethernet"
+                                    )
+                                    current_evpn_type = selected_value
+                                    
+                                    form_data["fields"].append({
+                                        "field_name": field_name,
+                                        "display_name": display_name,
+                                        "type": field_type,
+                                        "value": str(selected_value),
+                                        "required": field_required,
+                                        "description": field_description
+                                    })
+                            
+                            # Special handling for CVLAN ID (conditional on EVPN type)
+                            elif field_name == "cvlan_id":
+                                current_col = network_col1 if field_counter % 2 == 0 else network_col2
+                                
+                                # Only show CVLAN ID if tagged is selected
+                                evpn_type_key = f"{unique_form_key}_evpn_type"
+                                if evpn_type_key in st.session_state:
+                                    current_evpn_type = st.session_state[evpn_type_key]
+                                
+                                if current_evpn_type == "tagged":
+                                    with current_col:
+                                        st.markdown(f"**🏷️ {display_name}{'*' if current_evpn_type == 'tagged' else ''}**")
+                                        st.caption(f"🔢 {field_description}")
+                                        
+                                        if field_type == "number":
+                                            selected_value = st.number_input(
+                                                f"Enter {display_name}",
+                                                value=int(field_value) if str(field_value).isdigit() else 1000,
+                                                min_value=1,
+                                                max_value=4094,
+                                                key=widget_key,
+                                                label_visibility="collapsed",
+                                                help=f"VLAN ID for tagged EVPN (1-4094). Default: {field_value}"
+                                            )
+                                        else:
+                                            selected_value = st.text_input(
+                                                f"Enter {display_name}",
+                                                value=field_value,
+                                                key=widget_key,
+                                                label_visibility="collapsed",
+                                                help=f"Default: {field_value}"
+                                            )
+                                        
+                                        form_data["fields"].append({
+                                            "field_name": field_name,
+                                            "display_name": display_name,
+                                            "type": field_type,
+                                            "value": str(selected_value),
+                                            "required": current_evpn_type == "tagged",
+                                            "description": field_description
+                                        })
+                                else:
+                                    # For untagged, add empty CVLAN ID
+                                    form_data["fields"].append({
+                                        "field_name": field_name,
+                                        "display_name": display_name,
+                                        "type": field_type,
+                                        "value": "",
+                                        "required": False,
+                                        "description": field_description
+                                    })
+                            
+                            # Regular network fields
+                            else:
+                                current_col = network_col1 if field_counter % 2 == 0 else network_col2
+                                
+                                with current_col:
+                                    st.markdown(f"**🔧 {display_name}{'*' if field_required else ''}**")
+                                    if field_description:
+                                        st.caption(f"⚙️ {field_description}")
+                                    
+                                    if field_type == "number":
+                                        selected_value = st.number_input(
+                                            f"Enter {display_name}",
+                                            value=int(field_value) if str(field_value).isdigit() else 0,
+                                            key=widget_key,
+                                            label_visibility="collapsed",
+                                            help=f"Default: {field_value}"
+                                        )
+                                    else:  # text
+                                        selected_value = st.text_input(
+                                            f"Enter {display_name}",
+                                            value=field_value,
+                                            key=widget_key,
+                                            label_visibility="collapsed",
+                                            help=f"Default: {field_value}"
+                                        )
+                                    
+                                    form_data["fields"].append({
+                                        "field_name": field_name,
+                                        "display_name": display_name,
+                                        "type": field_type,
+                                        "value": str(selected_value),
+                                        "required": field_required,
+                                        "description": field_description
+                                    })
+                            
+                            field_counter += 1
+                
+                # Port Configuration Section
+                if port_fields:
+                    if service_type == "l2circuit":
+                        st.markdown("#### 🔌 Port Configuration (Default Values)")
+                        st.info("💡 Default port settings - modify if needed:")
+                    elif service_type == "evpn":
+                        st.markdown("#### 🔌 Interface & Site Configuration (Default Values)")
+                        st.info("💡 Interface and site identifiers - customize as required:")
+                    
+                    port_col1, port_col2 = st.columns(2)
+                    
+                    for field in form_template.get("fields", []):
+                        if field["field_name"] in port_fields:
+                            field_name = field["field_name"]
+                            display_name = field["display_name"]
+                            field_type = field["type"]
+                            field_value = field["value"]
+                            field_required = field.get("required", False)
+                            field_description = field.get("description", "")
+                            
+                            # Use unique widget key including service index
+                            widget_key = f"{unique_form_key}_{field_name}"
+                            
+                            current_col = port_col1 if field_counter % 2 == 0 else port_col2
+                            
+                            with current_col:
+                                st.markdown(f"**🔌 {display_name}{'*' if field_required else ''}**")
+                                if field_description:
+                                    st.caption(f"🔧 {field_description}")
+                                
                                 selected_value = st.text_input(
                                     f"Enter {display_name}",
                                     value=field_value,
@@ -1258,61 +1416,71 @@ def display_service_forms(form_templates, metadata=None):
                                     label_visibility="collapsed",
                                     help=f"Default: {field_value}"
                                 )
+                                
+                                form_data["fields"].append({
+                                    "field_name": field_name,
+                                    "display_name": display_name,
+                                    "type": field_type,
+                                    "value": str(selected_value),
+                                    "required": field_required,
+                                    "description": field_description
+                                })
                             
-                            form_data["fields"].append({
-                                "field_name": field_name,
-                                "display_name": display_name,
-                                "type": field_type,
-                                "value": str(selected_value),
-                                "required": field_required,
-                                "description": field_description
-                            })
-                        
-                        field_counter += 1
+                            field_counter += 1
                 
-                # Port Configuration Section
-                st.markdown("#### 🔌 Port Configuration (Default Values)")
-                st.info("💡 Default port settings - modify if needed:")
-                
-                port_col1, port_col2 = st.columns(2)
-                
-                for field in form_template.get("fields", []):
-                    if field["field_name"] in port_fields:
-                        field_name = field["field_name"]
-                        display_name = field["display_name"]
-                        field_type = field["type"]
-                        field_value = field["value"]
-                        field_required = field.get("required", False)
-                        field_description = field.get("description", "")
-                        
-                        # Use unique widget key including service index
-                        widget_key = f"{unique_form_key}_{field_name}"
-                        
-                        current_col = port_col1 if field_counter % 2 == 0 else port_col2
-                        
-                        with current_col:
-                            st.markdown(f"**🔌 {display_name}{'*' if field_required else ''}**")
-                            if field_description:
-                                st.caption(f"🔧 {field_description}")
+                # Performance Configuration Section (EVPN only)
+                if service_type == "evpn" and "performance_fields" in locals() and performance_fields:
+                    st.markdown("#### ⚡ Performance Configuration (Default Values)")
+                    st.info("💡 Performance and capacity settings:")
+                    
+                    perf_col1, perf_col2 = st.columns(2)
+                    
+                    for field in form_template.get("fields", []):
+                        if field["field_name"] in performance_fields:
+                            field_name = field["field_name"]
+                            display_name = field["display_name"]
+                            field_type = field["type"]
+                            field_value = field["value"]
+                            field_required = field.get("required", False)
+                            field_description = field.get("description", "")
                             
-                            selected_value = st.text_input(
-                                f"Enter {display_name}",
-                                value=field_value,
-                                key=widget_key,
-                                label_visibility="collapsed",
-                                help=f"Default: {field_value}"
-                            )
+                            # Use unique widget key including service index
+                            widget_key = f"{unique_form_key}_{field_name}"
                             
-                            form_data["fields"].append({
-                                "field_name": field_name,
-                                "display_name": display_name,
-                                "type": field_type,
-                                "value": str(selected_value),
-                                "required": field_required,
-                                "description": field_description
-                            })
-                        
-                        field_counter += 1
+                            current_col = perf_col1 if field_counter % 2 == 0 else perf_col2
+                            
+                            with current_col:
+                                st.markdown(f"**⚡ {display_name}{'*' if field_required else ''}**")
+                                if field_description:
+                                    st.caption(f"📊 {field_description}")
+                                
+                                if field_type == "number":
+                                    selected_value = st.number_input(
+                                        f"Enter {display_name}",
+                                        value=int(field_value) if str(field_value).isdigit() else 0,
+                                        key=widget_key,
+                                        label_visibility="collapsed",
+                                        help=f"Default: {field_value}"
+                                    )
+                                else:  # text
+                                    selected_value = st.text_input(
+                                        f"Enter {display_name}",
+                                        value=field_value,
+                                        key=widget_key,
+                                        label_visibility="collapsed",
+                                        help=f"Default: {field_value}"
+                                    )
+                                
+                                form_data["fields"].append({
+                                    "field_name": field_name,
+                                    "display_name": display_name,
+                                    "type": field_type,
+                                    "value": str(selected_value),
+                                    "required": field_required,
+                                    "description": field_description
+                                })
+                            
+                            field_counter += 1
                 
                 # Individual form submit button
                 st.markdown("---")
@@ -1376,16 +1544,30 @@ def display_service_forms(form_templates, metadata=None):
     else:
         st.warning("⚠️ No services saved yet. Please save individual service configurations above.")
     
-    # Configuration summary
-    st.markdown("""
-    <div style="background-color: #d4edda; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745; color: #155724;">
-    <h5 style="color: #155724; margin-bottom: 10px;">📋 Default Values Applied</h5>
-    <p style="color: #155724; margin-bottom: 8px;"><strong>🔧 Network:</strong> Peer addresses (10.40.40.6, 10.40.40.1), VC ID (100)</p>
-    <p style="color: #155724; margin-bottom: 8px;"><strong>🔌 Ports:</strong> Source/dest ports (et-0/0/6, et-0/0/8), Access IDs (111)</p>
-    <p style="color: #155724; margin-bottom: 8px;"><strong>🎲 VLAN:</strong> Random ID (1000-1100 range)</p>
-    <p style="color: #155724; margin-bottom: 0px;"><strong>✏️ Modification:</strong> All values can be changed in forms above</p>
-    </div>
-    """, unsafe_allow_html=True)
+    # Configuration summary based on service type
+    if service_type == "l2circuit":
+        st.markdown("""
+        <div style="background-color: #d4edda; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745; color: #155724;">
+        <h5 style="color: #155724; margin-bottom: 10px;">📋 L2 Circuit Default Values Applied</h5>
+        <p style="color: #155724; margin-bottom: 8px;"><strong>🔧 Network:</strong> Peer addresses (10.40.40.6, 10.40.40.1), VC ID (100)</p>
+        <p style="color: #155724; margin-bottom: 8px;"><strong>🔌 Ports:</strong> Source/dest ports (et-0/0/6, et-0/0/8), Access IDs (111)</p>
+        <p style="color: #155724; margin-bottom: 8px;"><strong>🎲 VLAN:</strong> Random ID (1000-1100 range)</p>
+        <p style="color: #155724; margin-bottom: 0px;"><strong>✏️ Modification:</strong> All values can be changed in forms above</p>
+        </div>
+        """, unsafe_allow_html=True)
+    elif service_type == "evpn":
+        st.markdown("""
+        <div style="background-color: #d1ecf1; padding: 15px; border-radius: 8px; border-left: 4px solid #0c5460; color: #0c5460;">
+        <h5 style="color: #0c5460; margin-bottom: 10px;">📋 EVPN ELAN Default Values Applied</h5>
+        <p style="color: #0c5460; margin-bottom: 8px;"><strong>🌐 VPN:</strong> VPN ID (001), Route Target (0:7777:2)</p>
+        <p style="color: #0c5460; margin-bottom: 8px;"><strong>🔀 Routing:</strong> Source RD (0:1234:11), Dest RD (0:1234:10)</p>
+        <p style="color: #0c5460; margin-bottom: 8px;"><strong>🔌 Interfaces:</strong> et-0/0/5.0, Network Access IDs (PNH/TH-underlay-link1)</p>
+        <p style="color: #0c5460; margin-bottom: 8px;"><strong>📍 Sites:</strong> PNH-site1, TH-site2</p>
+        <p style="color: #0c5460; margin-bottom: 8px;"><strong>⚡ Performance:</strong> Port Speed (10000 Mbps), MAC Limit (1000)</p>
+        <p style="color: #0c5460; margin-bottom: 8px;"><strong>🏷️ VLAN Type:</strong> Choose "tagged" for VLAN encapsulation or "untagged" for plain Ethernet</p>
+        <p style="color: #0c5460; margin-bottom: 0px;"><strong>✏️ Modification:</strong> All values can be changed in forms above</p>
+        </div>
+        """, unsafe_allow_html=True)
     
     # Global submit buttons
     col1, col2, col3 = st.columns([1, 1, 2])
@@ -2581,28 +2763,31 @@ def main():
                 <strong>Supported Services:</strong>
                 <ul>
                     <li>🔗 <strong>L2 Circuit</strong> - Layer 2 circuit services (fully supported with forms)</li>
+                    <li>⚡ <strong>EVPN ELAN</strong> - Ethernet VPN ELAN services (fully supported with forms)</li>
                     <li>🌐 <strong>L3VPN</strong> - Layer 3 VPN services (coming soon)</li>
-                    <li>⚡ <strong>EVPN</strong> - Ethernet VPN services (coming soon)</li>
                 </ul>
                 <br>
                 <strong>Service Creation Examples:</strong>
                 <ul>
-                    <li><strong>Basic Request:</strong> "Create an L2 circuit for customer SINET"</li>
-                    <li><strong>Detailed Request:</strong> "Create L2 circuit from PNH-ACX7024-A1 to TH-ACX7100-A6 for customer SINET with service name test-l2ckt"</li>
-                    <li><strong>Multiple Services:</strong> "Create 3 L2 circuits from PNH-ACX7024-A1 to TH-ACX7100-A6 for customer SINET"</li>
+                    <li><strong>L2 Circuit:</strong> "Create an L2 circuit for customer SINET"</li>
+                    <li><strong>L2 Circuit Detailed:</strong> "Create L2 circuit from PNH-ACX7024-A1 to TH-ACX7100-A6 for customer SINET with service name test-l2ckt"</li>
+                    <li><strong>EVPN ELAN:</strong> "Create EVPN service for customer SINET from PNH-ACX7024-A1 to TH-ACX7100-A6"</li>
+                    <li><strong>EVPN Detailed:</strong> "Deploy ethernet VPN ELAN service named evpn-test-001 for SINET between PNH and TH devices"</li>
+                    <li><strong>Multiple Services:</strong> "Create 3 EVPN services from PNH-ACX7024-A1 to TH-ACX7100-A6 for customer SINET"</li>
                 </ul>
                 <br>
                 <strong>Service Deletion Examples:</strong>
                 <ul>
-                    <li><strong>Simple Deletion:</strong> "Delete l2circuit1-135006"</li>
-                    <li><strong>Verbose Deletion:</strong> "Remove the L2 circuit service named l2circuit1-135006"</li>
-                    <li><strong>Alternative:</strong> "Terminate service l2circuit1-135006"</li>
+                    <li><strong>L2 Circuit Deletion:</strong> "Delete l2circuit1-135006"</li>
+                    <li><strong>EVPN Deletion:</strong> "Delete evpn002"</li>
+                    <li><strong>Verbose Deletion:</strong> "Remove the EVPN service named evpn-test-001"</li>
+                    <li><strong>Alternative:</strong> "Terminate service evpn1-060622"</li>
                 </ul>
                 <br>
                 <strong>🚀 Enhanced Interactive Workflow:</strong><br>
                 <strong>For Service Creation:</strong><br>
-                1. <strong>Parse Request:</strong> GPT-4 extracts basic service details from your natural language<br>
-                2. <strong>Interactive Forms:</strong> System presents forms for missing mandatory details<br>
+                1. <strong>Parse Request:</strong> GPT-4 extracts basic service details and detects service type (L2 Circuit/EVPN)<br>
+                2. <strong>Interactive Forms:</strong> System presents service-specific forms for missing mandatory details<br>
                 3. <strong>Form Validation:</strong> Real-time validation of all required fields<br>
                 4. <strong>Generate Configs:</strong> Automatically creates JSON and JUNOS CLI configurations<br>
                 5. <strong>User Confirmation:</strong> Review configurations in collapsible sections before deployment<br>
@@ -2615,7 +2800,21 @@ def main():
                 3. <strong>Show Confirmation:</strong> Display complete service details with collapsible JSON configuration<br>
                 4. <strong>User Confirmation:</strong> Review service details and confirm permanent deletion<br>
                 5. <strong>Execute Deletion:</strong> 3-step deletion workflow (modify operation → create order → execute)<br>
-                6. <strong>Verify Deletion:</strong> Confirm service removal and provide status updates
+                6. <strong>Verify Deletion:</strong> Confirm service removal and provide status updates<br>
+                <br>
+                <strong>🔗 L2 Circuit Features:</strong><br>
+                • VLAN encapsulation with random VLAN ID generation<br>
+                • LDP signaling configuration<br>
+                • Pseudowire setup with VC ID<br>
+                • Default peer addresses and port configurations<br>
+                <br>
+                <strong>⚡ EVPN ELAN Features:</strong><br>
+                • BGP EVPN routing with route targets and route distinguishers<br>
+                • Site-based configuration with location details<br>
+                • MAC learning and loop prevention<br>
+                • Interface and network access configuration<br>
+                • Performance settings (port speed, MAC limits)<br>
+                • Multi-site ELAN topology support
                 </div>
                 """, unsafe_allow_html=True)
     
@@ -2844,7 +3043,7 @@ def main():
             col1, col2 = st.columns([5, 1])
             
             with col1:
-                placeholder_text = "Try: 'Create 2 L2 circuits from PNH-ACX7024-A1 to TH-ACX7100-A6 for customer SINET' or 'Delete l2circuit1-135006'" if st.session_state.mcp_client.gpt4_enabled else "Type your message..."
+                placeholder_text = "Try: 'Create EVPN service for SINET' or 'Create L2 circuit from PNH-ACX7024-A1 to TH-ACX7100-A6' or 'Delete evpn002'" if st.session_state.mcp_client.gpt4_enabled else "Type your message..."
                 user_input = st.text_input(
                     "Type your message:",
                     placeholder=placeholder_text,
@@ -2935,16 +3134,18 @@ def main():
         1. Click "**🔌 Connect**" to establish connection with the MCP server
         2. Once connected, GPT-4 will automatically analyze your queries and detect service types
         3. Use natural language to create services like:
-           - **"Create an L2 circuit for customer SINET"** (system will prompt for missing details)
-           - **"Create L2 circuit from PNH-ACX7024-A1 to TH-ACX7100-A6 for customer SINET with service name test-circuit"**
-           - **"Create 3 L2 circuits from PNH-ACX7024-A1 to TH-ACX7100-A6 for customer SINET"**
+           - **L2 Circuit:** "Create an L2 circuit for customer SINET" (system will prompt for missing details)
+           - **L2 Circuit Detailed:** "Create L2 circuit from PNH-ACX7024-A1 to TH-ACX7100-A6 for customer SINET with service name test-circuit"
+           - **EVPN ELAN:** "Create EVPN service for customer SINET from PNH-ACX7024-A1 to TH-ACX7100-A6"
+           - **EVPN Detailed:** "Deploy ethernet VPN ELAN service named evpn-test-001 for SINET between PNH and TH devices"
+           - **Multiple Services:** "Create 3 EVPN services from PNH-ACX7024-A1 to TH-ACX7100-A6 for customer SINET"
         4. Use natural language to delete services like:
-           - **"Delete l2circuit1-135006"** (system will show confirmation with service details)
-           - **"Remove the L2 circuit service named test-circuit"**
-           - **"Terminate service l2circuit1-135006"**
+           - **L2 Circuit Deletion:** "Delete l2circuit1-135006" (system will show confirmation with service details)
+           - **EVPN Deletion:** "Delete evpn002" or "Remove the EVPN service named evpn-test-001"
+           - **Alternative:** "Terminate service evpn1-060622"
         5. The system will:
-           - Parse your request using GPT-4
-           - Present interactive forms for any missing mandatory details (for creation)
+           - Parse your request using GPT-4 and detect service type (L2 Circuit/EVPN/L3VPN)
+           - Present interactive service-specific forms for any missing mandatory details (for creation)
            - Show confirmation details with collapsible JSON configuration (for deletion)
            - Generate appropriate JSON configurations with JUNOS CLI (for creation)
            - Ask for your confirmation with collapsible config sections
@@ -2953,38 +3154,46 @@ def main():
         6. View services with queries like:
            - **"Show me all L3VPN service instances"**
            - **"Display L2 circuit services"**
+           - **"Show me EVPN services"**
            - **"Show me order history"**
         
         ### 🛠️ Supported Network Services:
-        - **🔗 L2 Circuit** - Layer 2 circuit services (fully supported with interactive forms and deletion)
+        - **🔗 L2 Circuit** - Layer 2 circuit services with VLAN encapsulation (fully supported with interactive forms and deletion)
+        - **⚡ EVPN ELAN** - Ethernet VPN ELAN services with BGP EVPN (fully supported with interactive forms and deletion)
         - **🌐 L3VPN** - Layer 3 VPN services (viewing supported, creation/deletion coming soon)
-        - **⚡ EVPN** - Ethernet VPN services (viewing supported, creation/deletion coming soon)
         
         ### 🚀 Enhanced Interactive Service Management Features:
-        - **Natural Language Processing:** Describe what you want in plain English
+        - **Natural Language Processing:** Describe what you want in plain English with automatic service type detection
+        - **Service-Specific Forms:** L2 Circuit and EVPN have different form layouts tailored to their requirements
         - **Interactive Forms:** System prompts for missing mandatory details through user-friendly forms
         - **Real-time Validation:** Forms validate required fields before submission
-        - **Default Values:** Forms pre-populate with intelligent defaults based on your request
+        - **Intelligent Defaults:** Forms pre-populate with service-appropriate defaults based on your request
         - **Multi-Service Support:** Create multiple services with individual forms for each
-        - **Automatic Configuration Generation:** JSON configs and JUNOS CLI created automatically
-        - **Collapsible Views:** Review configurations in organized, collapsible sections
+        - **Automatic Configuration Generation:** JSON configs and JUNOS CLI created automatically for each service type
+        - **Service-Aware Display:** Collapsible views organized by service type (L2 Circuit vs EVPN)
         - **User Confirmation:** Review before deployment with expandable config sections
-        - **Service Deletion:** Intelligent service lookup with confirmation workflow
+        - **Service Deletion:** Intelligent service lookup with confirmation workflow for any service type
         - **2-Step Workflow:** Upload service → Deploy service (creation) / Modify → Execute (deletion)
         - **Real-time Status:** Monitor progress and final results
         - **Bulk Operations:** Handle multiple services efficiently
         
         ### 💡 Example Queries:
-        **Service Creation (with automatic form assistance):**
+        **L2 Circuit Creation:**
         - "Create an L2 circuit for customer SINET" (system will ask for missing details)
         - "Create L2 circuit from PNH-ACX7024-A1 to TH-ACX7100-A6 for customer SINET"
         - "Create 5 L2 circuits for SINET customer between two devices"
         - "Deploy L2 circuit services with custom VLAN and peer addresses"
         
-        **Service Deletion (with intelligent confirmation):**
+        **EVPN ELAN Creation:**
+        - "Create EVPN service for customer SINET" (system will ask for missing details)
+        - "Create ethernet VPN from PNH-ACX7024-A1 to TH-ACX7100-A6 for customer SINET"
+        - "Deploy ELAN service named evpn-test-001 for SINET between PNH and TH"
+        - "Create 3 EVPN services with custom route targets and site configurations"
+        
+        **Service Deletion (any type):**
         - "Delete l2circuit1-135006" (system will find and show service details)
-        - "Remove service test-circuit-001"
-        - "Terminate the L2 circuit named my-service"
+        - "Remove service evpn002"
+        - "Terminate the EVPN service named evpn-test-001"
         - "Delete service l2ckt-abc-123"
         
         **Service Viewing:**

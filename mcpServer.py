@@ -52,7 +52,7 @@ except Exception as e:
 
 # Create an MCP server
 mcp = FastMCP("Routing Director MCP server with GPT-4 Intelligence and Enhanced Service Creation")
-BASE_URL = "https://66.129.234.204:48800"
+BASE_URL = os.getenv('BASE_URL', "https://66.129.234.204:48800")
 ORG_ID = os.getenv('ORG_ID', "0eaf8613-632d-41d2-8de4-c2d242325d7e")
 
 # Initialize OpenAI client
@@ -116,7 +116,7 @@ SERVICE_TYPES = {
     "evpn": {
         "name": "L2VPN EVPN",
         "parser": parse_evpn_json, 
-        "keywords": ["evpn", "l2vpn evpn", "ethernet vpn", "bgp evpn", "vxlan", "layer 2 vpn"]
+        "keywords": ["evpn", "l2vpn evpn", "ethernet vpn", "bgp evpn", "vxlan", "layer 2 vpn", "elan", "ethernet lan", "l2vpn elan"]
     }
 }
 
@@ -177,7 +177,7 @@ ENDPOINTS = {
 }
 
 class ParagonAuth:
-    """Handle authentication for Paragon Active Assurance API"""
+    """Handle authentication for Routing Director"""
     
     def __init__(self):
         self.username = os.getenv('USERNAME')
@@ -270,12 +270,21 @@ def dataframe_to_json_serializable(df: pd.DataFrame) -> Dict[str, Any]:
 
 def detect_service_type_from_query(user_query: str) -> str:
     """
-    Detect service type from user query based on keywords
+    Detect service type from user query based on keywords - Enhanced for EVPN
     """
     query_lower = user_query.lower()
     
-    # Check for specific service type keywords
+    # Check for EVPN first (higher priority)
+    evpn_keywords = ["evpn", "ethernet vpn", "elan", "ethernet lan", "l2vpn evpn", "bgp evpn", "vxlan"]
+    for keyword in evpn_keywords:
+        if keyword in query_lower:
+            logger.info(f"Detected service type 'evpn' from keyword '{keyword}'")
+            return "evpn"
+    
+    # Check for other service types
     for service_type, service_info in SERVICE_TYPES.items():
+        if service_type == "evpn":  # Already checked above
+            continue
         for keyword in service_info["keywords"]:
             if keyword in query_lower:
                 logger.info(f"Detected service type '{service_type}' from keyword '{keyword}'")
@@ -333,7 +342,7 @@ def analyze_query_with_gpt4(user_query: str) -> Dict[str, Any]:
             "description": "Get detailed information about a specific instance. Use when user wants complete details about one particular instance.",
         },
         "create_service_intelligent": {
-            "description": "Create a new service using natural language processing. Use when user wants to create, provision, or deploy a new service with natural language descriptions. This will analyze requirements and generate forms if needed.",
+            "description": "Create a new service using natural language processing. Use when user wants to create, provision, or deploy a new service (L2 Circuit, EVPN, L3VPN) with natural language descriptions. This will analyze requirements and generate forms if needed.",
         },
         "delete_service": {
             "description": "Delete an existing service by name using intelligent analysis. Use when user wants to delete, remove, terminate, or decommission a service. Handles natural language deletion requests and provides confirmation workflow.",
@@ -352,13 +361,13 @@ def analyze_query_with_gpt4(user_query: str) -> Dict[str, Any]:
     # Build service types description
     service_types_desc = []
     for service_type, service_info in SERVICE_TYPES.items():
-        keywords_str = ", ".join(service_info["keywords"][:3])  # Show first 3 keywords
+        keywords_str = ", ".join(service_info["keywords"][:4])  # Show first 4 keywords
         service_types_desc.append(f"- **{service_type}** ({service_info['name']}): Keywords like {keywords_str}")
     
     # Adjust prompt based on whether this looks like a creation or deletion request
     if is_creation:
         operation_note = """
-IMPORTANT: This query appears to be requesting SERVICE CREATION. If the user is asking to create, provision, deploy, or add new services, use the 'create_service_intelligent' tool which can handle natural language service creation requests and will prompt for additional details if needed.
+IMPORTANT: This query appears to be requesting SERVICE CREATION. If the user is asking to create, provision, deploy, or add new services, use the 'create_service_intelligent' tool which can handle natural language service creation requests for L2 Circuit, EVPN, and L3VPN services and will prompt for additional details if needed.
 """
     elif is_deletion:
         operation_note = """
@@ -391,16 +400,18 @@ ANALYSIS GUIDELINES:
 6. If user asks about "customers" or needs customer information -> use fetch_all_customers
 7. If user asks about "help", "capabilities", "endpoints", "APIs" -> use get_api_endpoints
 
-SERVICE TYPE DETECTION:
-- Analyze keywords to determine if user is asking about L3VPN, L2 Circuit, or EVPN services
+SERVICE TYPE DETECTION (CRITICAL):
+- For EVPN: Look for "evpn", "ethernet vpn", "elan", "ethernet lan", "l2vpn evpn", "bgp evpn"
+- For L3VPN: Look for "l3vpn", "layer 3", "l3", "ip vpn", "mpls vpn", "routing"
+- For L2 Circuit: Look for "l2circuit", "l2 circuit", "layer 2 circuit", "pseudowire", "circuit"
 - If no specific service type mentioned, default to "l2circuit" for create/delete operations, "l3vpn" for read operations
-- Look for variations like "layer 3", "l3", "circuit", "evpn", "ethernet vpn", etc.
+- EVPN has priority over L2 Circuit when both keywords might match
 
 IMPORTANT GUIDELINES:
 - For get_instance_details: extract the exact instance id mentioned
-- For create_service_intelligent: determine the service type from keywords
+- For create_service_intelligent: determine the service type from keywords (supports L2 Circuit, EVPN, L3VPN)
 - For delete_service: the tool will intelligently extract service name from natural language using GPT-4
-- Always specify the detected service_type
+- Always specify the detected service_type accurately
 
 Respond with a JSON object in this format:
 {{
@@ -409,14 +420,14 @@ Respond with a JSON object in this format:
     "service_type": "l3vpn|l2circuit|evpn"
 }}
 
-Be precise with tool and service type selection.
+Be precise with tool and service type selection, especially for EVPN detection.
 """
 
     try:
         response = openai_client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": "You are a precise query analyzer that responds only with valid JSON."},
+                {"role": "system", "content": "You are a precise query analyzer that responds only with valid JSON. Pay special attention to EVPN service type detection."},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.1,

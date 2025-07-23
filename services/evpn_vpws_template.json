@@ -1,0 +1,209 @@
+{
+  "customer_id": "{{CUSTOMER_ID}}",
+  "design_id": "{{DESIGN_ID}}",
+  "design_version": "{{DESIGN_VERSION}}",
+  "instance_id": "{{SERVICE_NAME}}",
+  "operation": "create",
+  "org_id": "{{ORG_ID}}",
+  "order_id": "{{ORDER_ID}}",
+  "service_model": "{{SERVICE_NAME}}",
+  "upload_time": "{{UPLOAD_TIME}}",
+  "workflow_id": "{{WORKFLOW_ID}}",
+  "workflow_run_id": "{{WORKFLOW_RUN_ID}}",
+  "l2vpn_ntw": {
+    "vpn_services": {
+      "vpn_service": [
+        {
+          "vpn_id": "{{VPN_ID}}",
+          "vpn_name": "{{SERVICE_NAME}}",
+          "customer_name": "{{CUSTOMER_NAME}}",
+          "vpn_description": "EVPN VPWS service for {{CUSTOMER_NAME}} - {{SERVICE_NAME}}",
+          "vpn_svc_type": "vpws-evpn",
+          "parent_service_id": "{{PARENT_SERVICE_ID}}",
+          "vpn_nodes": {
+            "vpn_node": [
+              {
+                "vpn_node_id": "{{SOURCE_VPN_NODE_ID}}",
+                "ne_id": "{{SOURCE_NE_ID}}",
+                "rd": "{{SOURCE_RD}}",
+                "vpn_targets": {
+                  "vpn_target": [
+                    {
+                      "id": "1",
+                      "route_targets": "{{ROUTE_TARGET}}",
+                      "route_target_type": "both"
+                    }
+                  ]
+                },
+                "vpn_network_accesses": {
+                  "vpn_network_access": [
+                    {
+                      "id": "{{SOURCE_NETWORK_ACCESS_ID}}",
+                      "port_id": "{{SOURCE_PORT_ID}}",
+                      "description": "EVPN VPWS access for {{SERVICE_NAME}} on {{SOURCE_NODE}}",
+                      "vpn_network_access_type": "point-to-point",
+                      "connection": {
+                        "encapsulation": {
+                          "dot1q": {
+                            "c_vlan_id": "{{SOURCE_VLAN_ID}}"
+                          }
+                        }
+                      },
+                      "service": {
+                        "svc_input_bandwidth": "{{SOURCE_BANDWIDTH}}",
+                        "svc_output_bandwidth": "{{SOURCE_BANDWIDTH}}",
+                        "svc_mtu": "{{MTU_SIZE}}"
+                      }
+                    }
+                  ]
+                },
+                "signaling_options": [
+                  {
+                    "evpn_signaling": {
+                      "ethernet_segment": {
+                        "esi_type": "{{ESI_TYPE}}",
+                        "esi_value": "{{SOURCE_ESI}}"
+                      },
+                      "control_word": true,
+                      "mac_flush": true
+                    }
+                  }
+                ]
+              },
+              {
+                "vpn_node_id": "{{DEST_VPN_NODE_ID}}",
+                "ne_id": "{{DEST_NE_ID}}",
+                "rd": "{{DEST_RD}}",
+                "vpn_targets": {
+                  "vpn_target": [
+                    {
+                      "id": "1",
+                      "route_targets": "{{ROUTE_TARGET}}",
+                      "route_target_type": "both"
+                    }
+                  ]
+                },
+                "vpn_network_accesses": {
+                  "vpn_network_access": [
+                    {
+                      "id": "{{DEST_NETWORK_ACCESS_ID}}",
+                      "port_id": "{{DEST_PORT_ID}}",
+                      "description": "EVPN VPWS access for {{SERVICE_NAME}} on {{DEST_NODE}}",
+                      "vpn_network_access_type": "point-to-point",
+                      "connection": {
+                        "encapsulation": {
+                          "dot1q": {
+                            "c_vlan_id": "{{DEST_VLAN_ID}}"
+                          }
+                        }
+                      },
+                      "service": {
+                        "svc_input_bandwidth": "{{DEST_BANDWIDTH}}",
+                        "svc_output_bandwidth": "{{DEST_BANDWIDTH}}",
+                        "svc_mtu": "{{MTU_SIZE}}"
+                      }
+                    }
+                  ]
+                },
+                "signaling_options": [
+                  {
+                    "evpn_signaling": {
+                      "ethernet_segment": {
+                        "esi_type": "{{ESI_TYPE}}",
+                        "esi_value": "{{DEST_ESI}}"
+                      },
+                      "control_word": true,
+                      "mac_flush": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "l2vpn_svc": {
+    "vpn_id": "{{VPN_ID}}",
+    "vpn_name": "{{SERVICE_NAME}}",
+    "customer_name": "{{CUSTOMER_NAME}}",
+    "vpn_description": "EVPN VPWS service for {{CUSTOMER_NAME}}",
+    "vpn_svc_type": "vpws",
+    "signaling_type": "bgp",
+    "sites": {
+      "site": [
+        {
+          "site_id": "{{SOURCE_SITE_ID}}",
+          "locations": {
+            "location": [
+              {
+                "location_id": "{{SOURCE_LOCATION_ID}}",
+                "address": {
+                  "country_code": "{{SOURCE_COUNTRY_CODE}}",
+                  "postal_code": "{{SOURCE_POSTAL_CODE}}"
+                }
+              }
+            ]
+          },
+          "site_network_accesses": {
+            "site_network_access": [
+              {
+                "site_network_access_id": "{{SOURCE_NETWORK_ACCESS_ID}}",
+                "site_network_access_type": "point-to-point",
+                "connection": {
+                  "tagged_interface": {
+                    "interface_id": "{{SOURCE_PORT_ID}}",
+                    "type": "tagged",
+                    "dot1q_vlan_tagged": {
+                      "c_vlan_id": "{{SOURCE_VLAN_ID}}"
+                    }
+                  }
+                },
+                "service": {
+                  "svc_input_bandwidth": "{{SOURCE_BANDWIDTH}}",
+                  "svc_output_bandwidth": "{{SOURCE_BANDWIDTH}}"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "site_id": "{{DEST_SITE_ID}}",
+          "locations": {
+            "location": [
+              {
+                "location_id": "{{DEST_LOCATION_ID}}",
+                "address": {
+                  "country_code": "{{DEST_COUNTRY_CODE}}",
+                  "postal_code": "{{DEST_POSTAL_CODE}}"
+                }
+              }
+            ]
+          },
+          "site_network_accesses": {
+            "site_network_access": [
+              {
+                "site_network_access_id": "{{DEST_NETWORK_ACCESS_ID}}",
+                "site_network_access_type": "point-to-point",
+                "connection": {
+                  "tagged_interface": {
+                    "interface_id": "{{DEST_PORT_ID}}",
+                    "type": "tagged",
+                    "dot1q_vlan_tagged": {
+                      "c_vlan_id": "{{DEST_VLAN_ID}}"
+                    }
+                  }
+                },
+                "service": {
+                  "svc_input_bandwidth": "{{DEST_BANDWIDTH}}",
+                  "svc_output_bandwidth": "{{DEST_BANDWIDTH}}"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

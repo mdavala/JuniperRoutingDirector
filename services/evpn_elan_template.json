@@ -1,0 +1,359 @@
+{
+  "customer_id": "{{CUSTOMER_ID}}",
+  "design_id": "{{DESIGN_ID}}",
+  "design_version": "{{DESIGN_VERSION}}",
+  "instance_id": "{{SERVICE_NAME}}",
+  "instance_status": "active",
+  "instance_uuid": "{{INSTANCE_UUID}}",
+  "l2vpn_ntw": {
+    "vpn_services": {
+      "vpn_service": [
+        {
+          "customer_name": "{{CUSTOMER_NAME}}",
+          "parent_service_id": "{{PARENT_SERVICE_ID}}",
+          "rt": "{{ROUTE_TARGET}}",
+          "vpn_id": "{{VPN_ID}}",
+          "vpn_name": "{{INSTANCE_UUID}}",
+          "vpn_nodes": {
+            "vpn_node": [
+              {
+                "mac_loop_prevention": {
+                  "frequency": "{{MAC_LOOP_FREQUENCY}}",
+                  "retry_timer": "{{MAC_LOOP_RETRY_TIMER}}"
+                },
+                "ne_id": "{{SOURCE_NE_ID}}",
+                "rd": "{{SOURCE_RD}}",
+                "vpn_network_accesses": {
+                  "vpn_network_access": [
+                    {
+                      "connection": {
+                        "encapsulation": {
+                          "dot1q": {
+                            "c_vlan_id": "{{CVLAN_ID}}"
+                          },
+                          "l2_access_type": "{{L2_ACCESS_TYPE}}"
+                        },
+                        "phy_interface": {
+                          "oam_802.3ah_link": {
+                            "enable": false
+                          },
+                          "port_speed": "{{SOURCE_PORT_SPEED}}"
+                        }
+                      },
+                      "id": "{{SOURCE_NETWORK_ACCESS_ID}}",
+                      "mac_addr_limit": {
+                        "drop": true,
+                        "mac_num_limit": "{{SOURCE_MAC_LIMIT}}"
+                      },
+                      "port_id": "{{SOURCE_PORT}}",
+                      "service": {
+                        "svc_input_bandwidth": {
+                          "input_bandwidth": []
+                        },
+                        "svc_output_bandwidth": {
+                          "output_bandwidth": []
+                        }
+                      }
+                    }
+                  ]
+                },
+                "vpn_node_id": "{{SOURCE_VPN_NODE_ID}}"
+              },
+              {
+                "mac_loop_prevention": {
+                  "frequency": "{{MAC_LOOP_FREQUENCY}}",
+                  "retry_timer": "{{MAC_LOOP_RETRY_TIMER}}"
+                },
+                "ne_id": "{{DEST_NE_ID}}",
+                "rd": "{{DEST_RD}}",
+                "vpn_network_accesses": {
+                  "vpn_network_access": [
+                    {
+                      "connection": {
+                        "encapsulation": {
+                          "dot1q": {
+                            "c_vlan_id": "{{CVLAN_ID}}"
+                          },
+                          "l2_access_type": "{{L2_ACCESS_TYPE}}"
+                        },
+                        "phy_interface": {
+                          "oam_802.3ah_link": {
+                            "enable": false
+                          },
+                          "port_speed": "{{DEST_PORT_SPEED}}"
+                        }
+                      },
+                      "id": "{{DEST_NETWORK_ACCESS_ID}}",
+                      "mac_addr_limit": {
+                        "drop": true,
+                        "mac_num_limit": "{{DEST_MAC_LIMIT}}"
+                      },
+                      "port_id": "{{DEST_PORT}}",
+                      "service": {
+                        "svc_input_bandwidth": {
+                          "input_bandwidth": []
+                        },
+                        "svc_output_bandwidth": {
+                          "output_bandwidth": []
+                        }
+                      }
+                    }
+                  ]
+                },
+                "vpn_node_id": "{{DEST_VPN_NODE_ID}}"
+              }
+            ]
+          },
+          "vpn_svc_type": "mpls-evpn"
+        }
+      ]
+    }
+  },
+  "l2vpn_svc": {
+    "sites": {
+      "site": [
+        {
+          "devices": {
+            "device": []
+          },
+          "locations": {
+            "location": [
+              {
+                "country_code": "{{SOURCE_COUNTRY_CODE}}",
+                "location_id": "{{SOURCE_LOCATION_ID}}",
+                "postal_code": "{{SOURCE_POSTAL_CODE}}"
+              }
+            ]
+          },
+          "mac_loop_prevention": {
+            "frequency": "{{MAC_LOOP_FREQUENCY}}",
+            "retry_timer": "{{MAC_LOOP_RETRY_TIMER}}"
+          },
+          "site_id": "{{SOURCE_SITE_ID}}",
+          "site_network_accesses": {
+            "site_network_access": [
+              {
+                "access_diversity": {
+                  "constraints": {
+                    "constraint": []
+                  },
+                  "groups": {
+                    "group": []
+                  }
+                },
+                "availability": {
+                  "access_priority": "{{ACCESS_PRIORITY}}"
+                },
+                "bearer": {
+                  "requested_type": {
+                    "strict": false,
+                    "type": "ethernet"
+                  }
+                },
+                "connection": {
+                  "eth_inf_type": "{{ETH_INF_TYPE}}",
+                  "tagged_interface": {
+                    "dot1q_vlan_tagged": {
+                      "cvlan_id": "{{CVLAN_ID}}",
+                      "tg_type": "c-vlan"
+                    },
+                    "type": "dot1q"
+                  },
+                  "untagged_interface": {
+                    "lldp": false,
+                    "oam_802.3ah_link": {
+                      "enabled": false
+                    },
+                    "speed": "{{SOURCE_PORT_SPEED}}"
+                  }
+                },
+                "mac_addr_limit": {
+                  "action": "drop",
+                  "limit_number": "{{SOURCE_MAC_LIMIT}}"
+                },
+                "network_access_id": "{{SOURCE_NETWORK_ACCESS_ID}}",
+                "placement_interface": {
+                  "ce": "",
+                  "interface": "{{SOURCE_PORT}}",
+                  "options": [
+                    {
+                      "ce": "",
+                      "pe": "{{SOURCE_NE_ID}}",
+                      "pop": "{{SOURCE_POP_ID}}",
+                      "port": "{{SOURCE_PHYSICAL_PORT}}",
+                      "vlans": {
+                        "size": 1,
+                        "start": 0
+                      }
+                    }
+                  ],
+                  "pe": "{{SOURCE_NE_ID}}",
+                  "pop": "{{SOURCE_POP_ID}}"
+                },
+                "placement_mac_address": {
+                  "options": [
+                    {
+                      "pe": "{{SOURCE_NE_ID}}",
+                      "pop": "{{SOURCE_POP_ID}}"
+                    }
+                  ],
+                  "pe": "{{SOURCE_NE_ID}}",
+                  "pop": "{{SOURCE_POP_ID}}"
+                },
+                "placement_rd": {
+                  "number": "{{SOURCE_RD_NUMBER}}",
+                  "options": [
+                    "{{SOURCE_RD_POOL}}"
+                  ],
+                  "pool": "{{SOURCE_RD_POOL}}"
+                },
+                "service": {
+                  "svc_bandwidth": {
+                    "bandwidth": []
+                  }
+                },
+                "vpn_attachment": {
+                  "vpn_id": "{{VPN_ID}}"
+                }
+              }
+            ]
+          },
+          "site_vpn_flavor": "site-vpn-flavor-single"
+        },
+        {
+          "devices": {
+            "device": []
+          },
+          "locations": {
+            "location": [
+              {
+                "country_code": "{{DEST_COUNTRY_CODE}}",
+                "location_id": "{{DEST_LOCATION_ID}}",
+                "postal_code": "{{DEST_POSTAL_CODE}}"
+              }
+            ]
+          },
+          "mac_loop_prevention": {
+            "frequency": "{{MAC_LOOP_FREQUENCY}}",
+            "retry_timer": "{{MAC_LOOP_RETRY_TIMER}}"
+          },
+          "site_id": "{{DEST_SITE_ID}}",
+          "site_network_accesses": {
+            "site_network_access": [
+              {
+                "access_diversity": {
+                  "constraints": {
+                    "constraint": []
+                  },
+                  "groups": {
+                    "group": []
+                  }
+                },
+                "availability": {
+                  "access_priority": "{{ACCESS_PRIORITY}}"
+                },
+                "bearer": {
+                  "requested_type": {
+                    "strict": false,
+                    "type": "ethernet"
+                  }
+                },
+                "connection": {
+                  "eth_inf_type": "{{ETH_INF_TYPE}}",
+                  "tagged_interface": {
+                    "dot1q_vlan_tagged": {
+                      "cvlan_id": "{{CVLAN_ID}}",
+                      "tg_type": "c-vlan"
+                    },
+                    "type": "dot1q"
+                  },
+                  "untagged_interface": {
+                    "lldp": false,
+                    "oam_802.3ah_link": {
+                      "enabled": false
+                    },
+                    "speed": "{{DEST_PORT_SPEED}}"
+                  }
+                },
+                "mac_addr_limit": {
+                  "action": "drop",
+                  "limit_number": "{{DEST_MAC_LIMIT}}"
+                },
+                "network_access_id": "{{DEST_NETWORK_ACCESS_ID}}",
+                "placement_interface": {
+                  "ce": "",
+                  "interface": "{{DEST_PORT}}",
+                  "options": [
+                    {
+                      "ce": "",
+                      "pe": "{{DEST_NE_ID}}",
+                      "pop": "{{DEST_POP_ID}}",
+                      "port": "{{DEST_PHYSICAL_PORT}}",
+                      "vlans": {
+                        "size": 1,
+                        "start": 0
+                      }
+                    }
+                  ],
+                  "pe": "{{DEST_NE_ID}}",
+                  "pop": "{{DEST_POP_ID}}"
+                },
+                "placement_mac_address": {
+                  "options": [
+                    {
+                      "pe": "{{DEST_NE_ID}}",
+                      "pop": "{{DEST_POP_ID}}"
+                    }
+                  ],
+                  "pe": "{{DEST_NE_ID}}",
+                  "pop": "{{DEST_POP_ID}}"
+                },
+                "placement_rd": {
+                  "number": "{{DEST_RD_NUMBER}}",
+                  "options": [
+                    "{{DEST_RD_POOL}}"
+                  ],
+                  "pool": "{{DEST_RD_POOL}}"
+                },
+                "service": {
+                  "svc_bandwidth": {
+                    "bandwidth": []
+                  }
+                },
+                "vpn_attachment": {
+                  "vpn_id": "{{VPN_ID}}"
+                }
+              }
+            ]
+          },
+          "site_vpn_flavor": "site-vpn-flavor-single"
+        }
+      ]
+    },
+    "vpn_services": {
+      "vpn_service": [
+        {
+          "customer_name": "{{CUSTOMER_NAME}}",
+          "placement_mc_lag_interfaces": {},
+          "placement_rt": {
+            "number": "{{RT_NUMBER}}",
+            "options": [
+              "{{RT_POOL}}"
+            ],
+            "pool": "{{RT_POOL}}"
+          },
+          "svc_topo": "any-to-any",
+          "vpn_id": "{{VPN_ID}}",
+          "vpn_svc_type": "pbb-evpn"
+        }
+      ]
+    }
+  },
+  "operation": "create",
+  "order_id": "{{ORDER_ID}}",
+  "org_id": "{{ORG_ID}}",
+  "upload_time": "{{UPLOAD_TIME}}",
+  "version": "1.0.0",
+  "workflow_id": "{{WORKFLOW_ID}}",
+  "workflow_run_id": "{{WORKFLOW_RUN_ID}}"
+}
